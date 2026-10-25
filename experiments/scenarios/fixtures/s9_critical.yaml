@@ -1,0 +1,15 @@
+# Higher-priority request that cannot fit until ST-9 evicts INT-901.
+intent:
+  id: INT-902
+  tenant: telemedicine-video
+  priority: 1
+  match:
+    src: 10.0.0.1/32
+    dst: 10.0.0.2/32
+    proto: udp
+    dport: 5002
+  guarantee:
+    min_bandwidth_mbps: 60
+  consistency: relaxed
+  on_violation: alert_only
+  dwell_seconds: 10

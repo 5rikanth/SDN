@@ -56,11 +56,13 @@ bandwidth reservations on current paths, chooses feasible residual-capacity rout
 and persists an explainable ADMIT/REJECT event. The Python 3.9 container suite
 passed 241 tests (11 skipped); Ruff passed.
 
-**In progress: ST-9 preemption (`feat/st-09-preemption`):** Higher-priority
-requests may displace one lower-priority reservation if that makes a path feasible;
-the controller removes the victim's installed rules. The M5 detector already has
-EWMA, consecutive-confirmation, hysteresis and dwell gates. Run the acceptance
-commands below on the current feature branch before calling ST-9 complete.
+**Local ST-9 branch (`feat/st-09-preemption`):** Higher-priority requests may
+displace one lower-priority reservation if that makes a path feasible; the
+controller removes the victim's installed rules before installing the new path.
+The live `s9_preemption.sh` scenario passed in Python 3.9 with Mininet, OVS and
+Ryu, verifying victim state, the persisted preemption event and flow-rule removal.
+The container suite passed 245 tests (11 skipped) and Ruff passed. The M5 detector
+already has EWMA, consecutive-confirmation, hysteresis and dwell gates.
 
 These branches are local and have not been pushed or merged. GitHub rejected the
 push for account `5rikanth` with HTTP 403; collaborator write access is needed before
@@ -69,8 +71,7 @@ opening the required PRs. Protected `main` remains unchanged.
 ## What is not true yet
 
 1. The dashboard is not implemented; it remains ST-11 work.
-2. ST-9 preemption is in progress; ST-10 two-phase updates and ST-12–14 evaluation
-   and final reporting remain.
+2. ST-10 two-phase updates and ST-12–14 evaluation and final reporting remain.
 3. The live result is from containerized Mininet and Open vSwitch, not physical
    switching hardware.
 
@@ -83,6 +84,7 @@ docker compose exec -T sdn pytest tests -q
 docker compose exec -T sdn ruff check src tests topology experiments
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh --st7
+docker compose exec -T sdn bash experiments/scenarios/s9_preemption.sh
 ```
 
 The `--st7` mode runs the S1 live checks, writes one deterministic confirmed

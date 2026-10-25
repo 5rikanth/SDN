@@ -1,0 +1,15 @@
+# Lower-priority reservation used by the ST-9 preemption scenario.
+intent:
+  id: INT-901
+  tenant: telemedicine-video
+  priority: 5
+  match:
+    src: 10.0.0.1/32
+    dst: 10.0.0.2/32
+    proto: udp
+    dport: 5001
+  guarantee:
+    min_bandwidth_mbps: 80
+  consistency: relaxed
+  on_violation: alert_only
+  dwell_seconds: 10
