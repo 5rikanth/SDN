@@ -88,7 +88,7 @@ the browser and container; the Python 3.9 suite passed 252 tests (11 skipped) an
 Ruff passed.
 
 **Cumulative local ST-12 branch (`feat/st-12-evaluation`):** ST-1 through ST-11
-are present in one branch. The Python 3.9 container suite passes 260 tests
+are present in one branch. The Python 3.9 container suite passes 261 tests
 (11 skipped), Ruff passes, and the ST-7, ST-9 and ST-10 live scenarios pass in
 sequence. ST-9 now removes its scenario-owned reservations on exit so it cannot
 bias later tests. The ten-run B0 baseline and its Student t 95% intervals are
@@ -99,15 +99,22 @@ directory. A ten-run B1 open-loop pilot also passed: each run installed and
 verified the path without telemetry probes, recording POST-response latency
 (mean 61.982 ms; 95% t interval 57.251–66.712 ms). The raw files and summary are
 under `experiments/results/`. This is not a claim of switch-install latency.
-The original B1–B3 scenario definitions and E1–E8 metric contract remain absent.
-A candidate operational contract is documented in
+The controlled B2 latency-fault trace now has ten live runs: mean detection-to-
+persistence 99.467 ms (95% t interval 96.249–102.684 ms), mean violation-to-path
+install 279.355 ms (interval 228.889–329.821 ms), and one reroute in every run.
+The B2 admission ablation also verified 140 Mbps of conflicting reservations on
+a 100 Mbps shared route. A matching B3 strict-update/default-detector pilot passed
+once (2.098 s detection persistence, 475 ms route installation); nine more B3
+runs are needed before comparison. The original B1–B3 scenario definitions and
+E1–E8 metric contract remain absent. A candidate operational contract is documented in
 `docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is explicitly a proposal, not the
 original plan, and needs team review before measurements are labeled E1–E8.
 
 ## What is not true yet
 
-1. ST-12 is incomplete: B0 and a B1 latency pilot have ten-run measurements;
-   B2–B3 and the original E1–E8 metric contract are absent from the checkout.
+1. ST-12 is incomplete: B0, B1, and proposed B2 measurements have ten runs;
+   B3 needs nine more repetitions and an alternating dwell trace. The original
+   E1–E8 contract is absent from the checkout.
 2. ST-13–14 figures, evaluation and final reporting remain.
 3. The live results are from containerized Mininet and Open vSwitch, not physical
    switching hardware.
@@ -123,6 +130,9 @@ docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh --st7
 docker compose exec -T sdn bash experiments/scenarios/s9_preemption.sh
 docker compose exec -T sdn bash experiments/scenarios/s10_two_phase.sh
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b2_no_conflict.sh | bash -s"
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b2_closed_loop.sh | bash -s -- --runs 10"
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b3_closed_loop.sh | bash -s -- --runs 10"
 docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/run_all.sh | bash -s -- --reuse-b0"
 curl http://localhost:8080/api/dashboard
 ```

@@ -114,7 +114,7 @@ interface needs agreement from both sides, recorded in `docs/decisions.md`.
 The project plan calls for four baselines × eight metrics, at least ten repetitions
 and 95% confidence intervals. The checkout currently has a ten-run B0 harness and
 an E5 feasibility pilot; it does not contain the original E1–E8 measurement
-definitions or B1–B3 scenario specifications. The runner regenerates only evidence
+definitions or the original B1–B3 scenario specifications. The runner regenerates only evidence
 that is implemented and labels the remaining work. A candidate contract for review
 is in `docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is not the missing original plan.
 
@@ -123,6 +123,12 @@ docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/run_all.sh | bas
 # Add --reuse-b0 to reuse the existing ten-run CSV instead of running B0 again.
 # Run a B1 install-and-forget pilot (no telemetry probes):
 docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b1_open_loop.sh | bash -s -- --runs 10"
+# Run the B2 no-conflict-check admission ablation (intentionally overbooks a link):
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b2_no_conflict.sh | bash -s"
+# Run ten B2 relaxed closed-loop measurements:
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b2_closed_loop.sh | bash -s -- --runs 10"
+# Run the matching B3 strict closed-loop baseline:
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b3_closed_loop.sh | bash -s -- --runs 10"
 ```
 
 | | Baseline |
@@ -135,15 +141,17 @@ docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b1_ope
 ## Status
 
 The cumulative local ST-12 branch contains ST-1 through ST-11. Its current
-container validation passes 260 tests (11 skipped) with Ruff clean; live ST-7,
+container validation passes 261 tests (11 skipped) with Ruff clean; live ST-7,
 ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the read-only dashboard at
 `http://localhost:8080`. ST-12 has a ten-run B0 baseline sample and a corrected
 flow-table pilot: on OVS 2.17.12, 2,000 unique rules installed at every tested
 limit from 100 through 5,000, so the software-switch E5 cap had no observed effect.
-A ten-run open-loop B1 pilot records POST-response latency (mean 61.982 ms,
+An open-loop B1 pilot has ten POST-response latency runs (mean 61.982 ms,
 95% t interval 57.251–66.712 ms); it remains a pilot measurement and is not yet
-included in the cross-baseline comparison. B2–B3 comparisons and ST-13–14
-reporting remain. See
+included in the cross-baseline comparison. B2 now has ten controlled closed-loop
+runs plus a live admission-ablation pilot. One matching B3 strict-update run
+passed, but nine more B3 repetitions and an alternating anti-oscillation trace
+remain. ST-13–14 reporting also remains. See
 [`docs/HANDOVER.md`](docs/HANDOVER.md) for branch status and validation results.
 
 **Resolved ST-7 defect.** Confirmed violation events are persisted to SQLite for

@@ -47,6 +47,9 @@ def main() -> int:
     parser.add_argument("--switch", default="s1")
     parser.add_argument("--samples", type=int, default=5)
     parser.add_argument("--interval", type=float, default=1.0)
+    parser.add_argument("--ewma-alpha", type=float, default=0.3)
+    parser.add_argument("--hysteresis-pct", type=float, default=0.1)
+    parser.add_argument("--consecutive-required", type=int, default=3)
     args = parser.parse_args()
 
     conn = db.connect()
@@ -54,7 +57,12 @@ def main() -> int:
     intent = db.load_intent(conn, args.intent)
     if intent is None:
         raise SystemExit(f"unknown intent: {args.intent}")
-    detector = ViolationDetector(intent)
+    detector = ViolationDetector(
+        intent,
+        ewma_alpha=args.ewma_alpha,
+        hysteresis_pct=args.hysteresis_pct,
+        consecutive_required=args.consecutive_required,
+    )
     probes = ActiveProbeSource()
     cookie = cookie_for_intent(args.intent)
     previous_bytes = None
@@ -115,6 +123,7 @@ def main() -> int:
         # alongside measurements so ST-7 and the audit view can consume them.
         persist_confirmed_event(conn, event)
         event_name = event.type.value if event else "none"
+        event_persisted_at = time.time() if event else None
         probe_error = ""
         if probe.delay_ms is None:
             detail = (reply.stdout + reply.stderr).strip().replace("\n", " | ")
@@ -122,7 +131,8 @@ def main() -> int:
         print(
             f"sample delay_ms={sample.delay_ms} jitter_ms={sample.jitter_ms} "
             f"loss_pct={sample.loss_pct} throughput_mbps={sample.throughput_mbps} "
-            f"status={detector.status.value} event={event_name}{probe_error}"
+            f"status={detector.status.value} event={event_name}"
+            f" event_persisted_at={event_persisted_at}{probe_error}"
         )
         previous_bytes, previous_at = current_bytes, started
         elapsed = time.time() - started

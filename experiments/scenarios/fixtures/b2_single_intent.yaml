@@ -1,0 +1,15 @@
+# B2 closed-loop variant of S1: relaxed direct updates and no dwell timer.
+intent:
+  id: INT-001
+  tenant: telemedicine-video
+  priority: 1
+  match:
+    src: 10.0.0.1/32
+    dst: 10.0.0.2/32
+    proto: udp
+    dport: 5001
+  guarantee:
+    max_latency_ms: 35
+  consistency: relaxed
+  on_violation: reroute
+  dwell_seconds: 0

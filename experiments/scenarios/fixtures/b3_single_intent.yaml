@@ -1,0 +1,16 @@
+# B3 comparison variant: same latency SLA and trace as B2, with strict updates
+# and the default detector smoothing, hysteresis, and confirmation settings.
+intent:
+  id: INT-001
+  tenant: telemedicine-video
+  priority: 1
+  match:
+    src: 10.0.0.1/32
+    dst: 10.0.0.2/32
+    proto: udp
+    dport: 5001
+  guarantee:
+    max_latency_ms: 35
+  consistency: strict
+  on_violation: reroute
+  dwell_seconds: 10

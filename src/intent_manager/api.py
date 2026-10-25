@@ -7,6 +7,7 @@ intent state inspection, and withdrawal.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from typing import Any, Dict, List
 
@@ -16,16 +17,42 @@ from fastapi.responses import JSONResponse
 
 from src.common import db as dbm
 from src.common.events import Event, EventBus, EventType
-from src.common.models import Consistency, IntentRecord, IntentState, to_dict
+from src.common.models import (
+    AdmissionDecision, Consistency, IntentRecord, IntentState, Verdict, to_dict,
+)
 from src.enforcement import two_phase
 from src.admission.feasibility import assess
 from src.intent_manager.validator import validate
+from src.pathing.compute import compute_path
 from topology.topology_spec import build_graph
 
 app = FastAPI(title="M1 Intent Manager API")
 
 # Shared event bus for publishing lifecycle events
 event_bus = EventBus()
+
+
+def _admission_for_request(conn, intent, graph):
+    """Apply production admission, or the explicit ST-12 B2 ablation profile."""
+    if os.environ.get("TEAM16_EXPERIMENT_MODE", "").lower() != "b2":
+        return assess(conn, intent, graph)
+
+    # B2 ignores existing tenant reservations and conflicting admissions, but
+    # still requires this intent's own guarantees to have a feasible topology path.
+    plan, reasons = compute_path(intent, graph)
+    if plan is not None:
+        return AdmissionDecision(
+            intent.id,
+            Verdict.ADMIT,
+            "B2 experiment profile: reservation/conflict checks bypassed; "
+            "the intent has an individually feasible path.",
+        ), plan
+    detail = "; ".join(f"{path}: {reason}" for path, reason in sorted(reasons.items()))
+    return AdmissionDecision(
+        intent.id,
+        Verdict.REJECT,
+        f"B2 experiment profile: no individually feasible path. {detail}".strip(),
+    ), None
 
 
 def get_db():
@@ -97,7 +124,7 @@ async def create_intent(
 
     # M2 admission uses the persisted active paths to account for reservations.
     graph = build_graph()
-    decision, plan = assess(conn, rec, graph)
+    decision, plan = _admission_for_request(conn, rec, graph)
     if plan is not None and rec.consistency is Consistency.STRICT:
         plan = two_phase.with_version(plan, two_phase.next_version())
     rec.state = IntentState.ADMITTED if decision.admitted else IntentState.REJECTED

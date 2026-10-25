@@ -22,9 +22,20 @@ B1 pilot now installs and verifies one feasible intent without starting telemetr
 probes. Ten runs measured POST-response latency at 61.982 ms on average (sample SD
 6.613 ms; 95% t interval 57.251–66.712 ms). Raw observations and the summary are
 saved under `experiments/results/`. This is a pilot measurement, not the full B1
-comparison or a claim of switch-install activation time. B2 still needs
-explicit control of update mode, detector damping and admission. The single-intent
-ST-7 scenario cannot establish the value of conflict checking by itself.
+comparison or a claim of switch-install activation time. B2 closed-loop and
+admission-ablation pilots are available. The initial closed-loop trial exposed a
+confound: an idle probe stream cannot satisfy a throughput guarantee, so it
+triggered a non-network-fault violation; those runs were discarded. The controlled
+trace applies 40 ms delay only to the primary path and uses a latency-only intent.
+Ten B2 runs measured detection persistence latency at 99.467 ms (sample SD
+4.498 ms; 95% t interval 96.249–102.684 ms), recovery latency at 279.355 ms
+(SD 70.552 ms; interval 228.889–329.821 ms), and one reroute per run. One B3
+pilot passed with strict versioned updates and default detector damping; its
+results are not a ten-run comparison. The separate admission-ablation pilot
+admits two individually feasible reservations that claim 140 Mbps on a shared
+100 Mbps path. Raw files and summaries are under `experiments/results/`. These
+remain proposed measurements, not the original E2/E3 definitions. The
+single-intent scenario cannot establish the value of conflict checking by itself.
 
 ## Candidate metrics
 
@@ -63,8 +74,8 @@ existing B0 columns until the team accepts the mapping.
 ## Work needed after review
 
 1. Confirm or replace these definitions with the original metric contract.
-2. Run ten B1 repetitions and implement B2 harness controls, including a real
-   contention case for the admission-control comparison.
+2. Run nine more B3 repetitions and add an alternating violation/recovery trace
+   for evaluating anti-oscillation behavior; the B2 conflict test is one pilot.
 3. Add E1-E8 instrumentation without changing the frozen intent grammar.
 4. Run ten repetitions per approved baseline, summarize confidence intervals and
    regenerate figures through `experiments/run_all.sh`.

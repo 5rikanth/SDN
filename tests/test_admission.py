@@ -98,3 +98,47 @@ def test_api_persists_admission_decision_event(conn):
     assert len(events) == 1
     assert events[0].type is EventType.ADMISSION_DECIDED
     assert events[0].payload["verdict"] == "admit"
+
+
+def test_b2_experiment_profile_admits_individually_feasible_conflict(conn, monkeypatch):
+    """The B2 ablation ignores reservations without changing normal admission."""
+    import asyncio
+    import json
+    from starlette.requests import Request
+    from src.intent_manager import api as api_mod
+
+    victim = make_intent("INT-B2-V", "tenant-a", "10.0.0.1/32", "10.0.0.2/32", 80)
+    victim.state = IntentState.ACTIVE
+    dbm.save_intent(conn, victim)
+    dbm.save_path(conn, PathPlan("INT-B2-V", ("s1", "s2", "s3", "s7"),
+                                 ("s1-s2", "s2-s3", "s3-s7"), 6, 100))
+    body = """intent:
+  id: INT-803
+  tenant: tenant-b
+  priority: 1
+  match:
+    src: 10.0.0.1/32
+    dst: 10.0.0.2/32
+  guarantee:
+    min_bandwidth_mbps: 60
+  consistency: relaxed
+  on_violation: reroute
+  dwell_seconds: 0
+"""
+
+    async def receive():
+        return {"type": "http.request", "body": body.encode(), "more_body": False}
+
+    request = Request(
+        {"type": "http", "method": "POST", "path": "/intent",
+         "headers": [(b"content-type", b"text/plain")]},
+        receive,
+    )
+    monkeypatch.setenv("TEAM16_EXPERIMENT_MODE", "b2")
+    response = asyncio.run(api_mod.create_intent(request, conn))
+
+    assert response.status_code == 201
+    assert json.loads(response.body)["state"] == "admitted"
+    assert dbm.load_intent(conn, "INT-B2-V").state is IntentState.ACTIVE
+    event = dbm.events_for(conn, "INT-803")[0]
+    assert "reservation/conflict checks bypassed" in event.payload["reason"]

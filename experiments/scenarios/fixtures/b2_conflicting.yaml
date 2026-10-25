@@ -1,0 +1,16 @@
+# Individually feasible 60 Mbps request; together with INT-B2-901 it exceeds
+# the shared 100 Mbps northbound link, demonstrating the omitted conflict check.
+intent:
+  id: INT-922
+  tenant: telemedicine-video
+  priority: 1
+  match:
+    src: 10.0.0.1/32
+    dst: 10.0.0.2/32
+    proto: udp
+    dport: 5002
+  guarantee:
+    min_bandwidth_mbps: 60
+  consistency: relaxed
+  on_violation: reroute
+  dwell_seconds: 0

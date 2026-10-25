@@ -1,0 +1,7 @@
+baseline,metric,n,mean,stdev,ci95_t_low,ci95_t_high,min,max,unit,interpretation
+B2,detection_latency,10,99.467,4.498,96.249,102.684,94.968,110.836,ms,"Controlled 40 ms primary-link delay; relaxed update; alpha=1; no hysteresis; one-sample confirmation"
+B2,recovery_latency,10,279.355,70.552,228.889,329.821,215.894,440.267,ms,"From confirmed SLA event timestamp to causal path-installed event timestamp"
+B2,reroute_count,10,1.000,0.000,1.000,1.000,1.000,1.000,count,"One reroute in each run"
+B3,detection_latency,1,2097.640,,,,,2097.640,2097.640,ms,"Single pilot only; strict update and default detector smoothing/hysteresis; not comparable as a ten-run result"
+B3,recovery_latency,1,475.152,,,,,475.152,475.152,ms,"Single pilot only; strict versioned path update"
+B3,reroute_count,1,1.000,,,,,1.000,1.000,count,"Single pilot only"
