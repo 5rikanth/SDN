@@ -87,10 +87,19 @@ and publishes port 8080 on `127.0.0.1` only. The page and endpoints were checked
 the browser and container; the Python 3.9 suite passed 252 tests (11 skipped) and
 Ruff passed.
 
+**ST-12 evaluation, in progress (`feat/st-12-evaluation`):** The existing B0
+Mininet baseline completed ten live repetitions in Docker. Raw per-run CSV and a
+summary with Student t 95% confidence intervals are saved under
+`experiments/results/`. B1–B3 runners and the exact E1–E8 definitions are not in
+the checkout; the evaluation plan names them without specifying operational
+measurements, so the remaining comparisons are not yet reproducible.
+
 ## What is not true yet
 
-1. ST-12–14 evaluation and final reporting remain.
-2. The live result is from containerized Mininet and Open vSwitch, not physical
+1. ST-12 is incomplete: only B0 has a runner and ten-run result; the E1–E8
+   definitions and B1–B3 setup need a team-approved measurement contract.
+2. ST-13–14 figures, evaluation and final reporting remain.
+3. The live result is from containerized Mininet and Open vSwitch, not physical
    switching hardware.
 
 ## Acceptance commands

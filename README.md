@@ -131,7 +131,9 @@ figure is regenerable.
 ST-1 through ST-11 have local feature-branch implementations and container
 validation. The live ST-10 scenario verifies a strict versioned route update across
 Mininet, Open vSwitch and Ryu. ST-11 adds the read-only dashboard at
-`http://localhost:8080`; evaluation runs and final reporting remain. See
+`http://localhost:8080`. ST-12 has a ten-run B0 baseline sample; remaining B1–B3
+comparisons need the missing metric and setup definitions. ST-13–14 and final
+reporting remain. See
 [`docs/HANDOVER.md`](docs/HANDOVER.md) for branch status and validation results.
 
 **Resolved ST-7 defect.** Confirmed violation events are persisted to SQLite for
