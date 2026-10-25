@@ -17,8 +17,8 @@ from fastapi.responses import JSONResponse
 from src.common import db as dbm
 from src.common.events import Event, EventBus, EventType
 from src.common.models import IntentRecord, IntentState, to_dict
+from src.admission.feasibility import assess
 from src.intent_manager.validator import validate
-from src.pathing.compute import compute_path
 from topology.topology_spec import build_graph
 
 app = FastAPI(title="M1 Intent Manager API")
@@ -94,9 +94,19 @@ async def create_intent(
         )
     )
 
-    # Path computation (M3 first light)
+    # M2 admission uses the persisted active paths to account for reservations.
     graph = build_graph()
-    plan, reasons = compute_path(rec, graph)
+    decision, plan = assess(conn, rec, graph)
+    rec.state = IntentState.ADMITTED if decision.admitted else IntentState.REJECTED
+    dbm.save_intent(conn, rec)
+    decision_event = Event(
+        type=EventType.ADMISSION_DECIDED,
+        intent_id=rec.id,
+        message=decision.reason,
+        payload={"verdict": decision.verdict.value, "reason": decision.reason},
+    )
+    dbm.save_event(conn, decision_event)
+    event_bus.publish(decision_event)
 
     response_data: Dict[str, Any] = {
         "id": rec.id,
@@ -121,13 +131,13 @@ async def create_intent(
             )
         )
     else:
-        response_data["reasons"] = reasons
+        response_data["reasons"] = {"admission": decision.reason}
         event_bus.publish(
             Event(
                 type=EventType.PATH_INFEASIBLE,
                 intent_id=rec.id,
                 message=f"No feasible path for {rec.id}",
-                payload={"reasons": reasons},
+                payload={"reasons": response_data["reasons"]},
             )
         )
 

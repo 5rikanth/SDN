@@ -68,7 +68,7 @@ def prune(
             bottleneck_bw = float("inf")
             for u, v in zip(path, path[1:]):
                 edge_data = graph.get_edge_data(u, v, default={})
-                bw = float(edge_data.get("bw_mbps", 0.0))
+                bw = float(edge_data.get("residual_mbps", edge_data.get("bw_mbps", 0.0)))
                 if bw < bottleneck_bw:
                     bottleneck_bw = bw
             if bottleneck_bw < guarantee.min_bandwidth_mbps:
@@ -122,7 +122,7 @@ def select_best(paths: List[List[str]], graph: nx.Graph) -> Optional[List[str]]:
         total_delay = 0.0
         for u, v in zip(path, path[1:]):
             edge_data = graph.get_edge_data(u, v, default={})
-            bw = float(edge_data.get("bw_mbps", 0.0))
+            bw = float(edge_data.get("residual_mbps", edge_data.get("bw_mbps", 0.0)))
             if bw < bottleneck_bw:
                 bottleneck_bw = bw
             total_delay += float(edge_data.get("delay_ms", 0.0))
