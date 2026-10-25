@@ -1,0 +1,2 @@
+metric,n,mean,stdev,ci95_t_low,ci95_t_high,min,max,unit,interpretation
+intent_post_response_latency,10,61.982,6.613,57.251,66.712,52.255,73.706,ms,"POST response latency only; pilot under proposed B1; not switch-install latency or original E1"

@@ -4,10 +4,16 @@
 set -euo pipefail
 
 ST7_CLOSE_LOOP=0
-if [[ "${1:-}" == "--st7" ]]; then
-    ST7_CLOSE_LOOP=1
-elif [[ "$#" -gt 0 ]]; then
-    echo "Usage: $0 [--st7]"
+B1_OPEN_LOOP=0
+for arg in "$@"; do
+    case "$arg" in
+        --st7) ST7_CLOSE_LOOP=1 ;;
+        --b1) B1_OPEN_LOOP=1 ;;
+        *) echo "Usage: $0 [--st7] [--b1]"; exit 2 ;;
+    esac
+done
+if [[ "$ST7_CLOSE_LOOP" -eq 1 && "$B1_OPEN_LOOP" -eq 1 ]]; then
+    echo "--st7 and --b1 are separate experiment modes"
     exit 2
 fi
 
@@ -107,9 +113,11 @@ DRIVER_PID=$!
 sleep 4
 
 echo "=== [4/6] Submitting Intent INT-001 ==="
+ACTIVATION_START_NS=$(date +%s%N)
 HTTP_CODE=$(curl -s -o /tmp/post_intent.json -w "%{http_code}" -X POST http://127.0.0.1:8000/intent \
   -H "Content-Type: text/plain" \
   --data-binary @intents/s1_urllc_baseline.yaml)
+ACTIVATION_END_NS=$(date +%s%N)
 
 if [ "${HTTP_CODE}" != "201" ]; then
     echo "FAIL: POST /intent failed with HTTP status ${HTTP_CODE}"
@@ -160,6 +168,20 @@ else
 fi
 
 if [ "${CHECKS_FAILED}" -eq 0 ]; then
+    if [ "${B1_OPEN_LOOP}" -eq 1 ]; then
+        # B1 deliberately stops after install verification: no probe runtime is
+        # started, so there is no violation-triggered adaptation in this run.
+        ACTIVATION_MS=$(python3.9 -c "print((${ACTIVATION_END_NS} - ${ACTIVATION_START_NS}) / 1000000)")
+        RESULT_DIR="experiments/results/raw"
+        mkdir -p "${RESULT_DIR}"
+        RESULT_FILE="${RESULT_DIR}/b1_open_loop_$(date +%Y%m%d%H%M%S).csv"
+        printf 'run_id,timestamp,metric,value,unit\n1,%s,intent_post_response_latency,%s,ms\n' \
+            "$(date +%s)" "${ACTIVATION_MS}" > "${RESULT_FILE}"
+        echo "PASS: open-loop intent path installed; no telemetry probes were started"
+        echo "B1 pilot result written to ${RESULT_FILE} (POST /intent response latency: ${ACTIVATION_MS} ms)"
+        echo "=== SCENARIO B1: OPEN-LOOP PILOT PASSED ==="
+        exit 0
+    fi
     echo "=== [6/6] Live Telemetry ==="
     H1_PID=$(cat /var/run/team16/h1.pid)
     H2_PID=$(cat /var/run/team16/h2.pid)

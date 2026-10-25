@@ -121,6 +121,8 @@ is in `docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is not the missing original pla
 ```bash
 docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/run_all.sh | bash -s"
 # Add --reuse-b0 to reuse the existing ten-run CSV instead of running B0 again.
+# Run a B1 install-and-forget pilot (no telemetry probes):
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b1_open_loop.sh | bash -s -- --runs 10"
 ```
 
 | | Baseline |
@@ -138,8 +140,10 @@ ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the read-only dashboard at
 `http://localhost:8080`. ST-12 has a ten-run B0 baseline sample and a corrected
 flow-table pilot: on OVS 2.17.12, 2,000 unique rules installed at every tested
 limit from 100 through 5,000, so the software-switch E5 cap had no observed effect.
-The run_all runner generates a B0 summary and B0/E5 figures; B1–B3 comparisons and
-ST-13–14 reporting remain. See
+A ten-run open-loop B1 pilot records POST-response latency (mean 61.982 ms,
+95% t interval 57.251–66.712 ms); it remains a pilot measurement and is not yet
+included in the cross-baseline comparison. B2–B3 comparisons and ST-13–14
+reporting remain. See
 [`docs/HANDOVER.md`](docs/HANDOVER.md) for branch status and validation results.
 
 **Resolved ST-7 defect.** Confirmed violation events are persisted to SQLite for

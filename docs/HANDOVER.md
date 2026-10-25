@@ -95,15 +95,19 @@ bias later tests. The ten-run B0 baseline and its Student t 95% intervals are
 saved under `experiments/results/`. The corrected E5 pilot loaded 2,000 unique
 rules at each configured flow limit from 100 to 5,000 on OVS 2.17.12; this
 software-switch pilot showed no cap effect. Its CSV is in the same raw-results
-directory. B1–B3 remain without a checked-in experiment specification or the
-original E1–E8 metric contract. A candidate operational contract is documented
-in `docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is explicitly a proposal, not the
-original plan, and needs team review before B1–B3 measurements are labeled E1–E8.
+directory. A ten-run B1 open-loop pilot also passed: each run installed and
+verified the path without telemetry probes, recording POST-response latency
+(mean 61.982 ms; 95% t interval 57.251–66.712 ms). The raw files and summary are
+under `experiments/results/`. This is not a claim of switch-install latency.
+The original B1–B3 scenario definitions and E1–E8 metric contract remain absent.
+A candidate operational contract is documented in
+`docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is explicitly a proposal, not the
+original plan, and needs team review before measurements are labeled E1–E8.
 
 ## What is not true yet
 
-1. ST-12 is incomplete: only B0 has ten-run measurements; B1–B3 and the original
-   E1–E8 metric contract are absent from the checkout.
+1. ST-12 is incomplete: B0 and a B1 latency pilot have ten-run measurements;
+   B2–B3 and the original E1–E8 metric contract are absent from the checkout.
 2. ST-13–14 figures, evaluation and final reporting remain.
 3. The live results are from containerized Mininet and Open vSwitch, not physical
    switching hardware.
