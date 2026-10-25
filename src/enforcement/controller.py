@@ -8,6 +8,7 @@ OVS QoS/HTB queues.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any, Dict, Optional, Tuple
@@ -40,11 +41,13 @@ except ImportError:  # pragma: no cover
         return decorator
 
 from src.common import db as dbm
-from src.common.events import EventBus, path_installed
+from src.common.audit import AuditLog
+from src.common.events import Event, EventBus, EventType, Severity, path_installed
 from src.common.models import IntentRecord, IntentState, PathPlan
 from src.enforcement.flowmod import cookie_for_intent, install, remove, rules_for_path
 from src.enforcement.queues import ensure_queue
-from topology.topology_spec import HOSTS, SWITCHES
+from src.telemetry.loop import ControlLoop
+from topology.topology_spec import HOSTS, SWITCHES, build_graph
 
 
 class Team16Controller(BaseApp):
@@ -63,10 +66,22 @@ class Team16Controller(BaseApp):
         self.name_to_dpid: Dict[str, int] = {}
         # (sw_a, sw_b) -> out_port or (sw_a, host_name) -> out_port
         self.port_map: Dict[Tuple[str, str], int] = {}
-        self.event_bus: Optional[EventBus] = None
+        self.event_bus: Optional[EventBus] = EventBus()
         # SQLite is the cross-process handoff between M1/M3 and this Ryu app.
         # The value records the path revision already installed for each intent.
         self._installed_plans: Dict[str, Tuple[Optional[int], float]] = {}
+        self._event_conn = None
+        self._audit_log = None
+        self._control_loop = None
+        self._seen_violation_ids = set()
+        if RYU_AVAILABLE:
+            self._event_conn = dbm.connect()
+            dbm.init_db(self._event_conn)
+            self._audit_log = AuditLog(self._event_conn)
+            self.event_bus.subscribe(self._audit_log.record)
+            self._control_loop = ControlLoop(
+                self._event_conn, build_graph(), self, self.event_bus, self._audit_log
+            )
         self._sync_thread = hub.spawn(self._enforcement_loop) if RYU_AVAILABLE else None
 
     def _enforcement_loop(self) -> None:
@@ -133,8 +148,82 @@ class Team16Controller(BaseApp):
                     installed,
                     " -> ".join(plan.switches),
                 )
+
+            # M5 runs in a separate process. Its durable SQLite event rows are
+            # the handoff into this controller process's in-memory event bus.
+            self._dispatch_persisted_violations(conn)
         finally:
             conn.close()
+
+    def _dispatch_persisted_violations(self, conn) -> None:
+        """Publish each unresolved M5 violation once to this process's bus.
+
+        Only the newest violation per intent is actionable. A later recovery or
+        a causal ControlLoop audit outcome resolves an older row, including
+        across controller restarts.
+        """
+        if getattr(self, "event_bus", None) is None:
+            return
+        if not hasattr(self, "_seen_violation_ids"):
+            self._seen_violation_ids = set()
+        resolution_types = (
+            EventType.SLA_RESTORED.value,
+            EventType.PATH_INSTALLED.value,
+            EventType.PATH_INSTALL_FAILED.value,
+            EventType.PATH_INFEASIBLE.value,
+            EventType.VIOLATION_SUPPRESSED.value,
+        )
+        placeholders = ", ".join("?" for _ in resolution_types)
+        rows = conn.execute(
+            "SELECT rowid AS event_order, id, type, severity, intent_id, at, "
+            "message, payload_json "
+            "FROM events WHERE type = ? OR type IN (" + placeholders + ") "
+            "ORDER BY rowid ASC",
+            (EventType.SLA_VIOLATED.value,) + resolution_types,
+        ).fetchall()
+        events = [
+            (
+                Event(
+                    id=str(row["id"]),
+                    type=EventType(row["type"]),
+                    severity=Severity(row["severity"]),
+                    intent_id=row["intent_id"],
+                    at=float(row["at"]),
+                    message=row["message"],
+                    payload=json.loads(row["payload_json"]),
+                ),
+                int(row["event_order"]),
+            )
+            for row in rows
+        ]
+        latest_violation = {}
+        for event, event_order in events:
+            if event.type is EventType.SLA_VIOLATED and event.intent_id:
+                latest_violation[event.intent_id] = (event, event_order)
+
+        causal_parts = {"measurement", "threshold", "decision", "action"}
+        for intent_id, (violation, violation_order) in latest_violation.items():
+            if violation.id in self._seen_violation_ids:
+                continue
+            current_path = dbm.current_path(conn, intent_id)
+            if current_path is not None and current_path.computed_at > violation.at:
+                # A crash may happen after the alternative path is committed but
+                # before its causal audit row. The path revision is durable proof
+                # that a later decision already changed this intent's route.
+                continue
+            resolved = any(
+                other.intent_id == intent_id
+                and other_order > violation_order
+                and (
+                    other.type is EventType.SLA_RESTORED
+                    or causal_parts.issubset(other.payload)
+                )
+                for other, other_order in events
+            )
+            if resolved:
+                continue
+            self._seen_violation_ids.add(violation.id)
+            self.event_bus.publish(violation)
 
     def _dpid_to_sw_name(self, dpid: int) -> str:
         """Convert integer DPID (e.g. 1, 7) to switch name ('s1', 's7')."""
@@ -268,6 +357,12 @@ class Team16Controller(BaseApp):
         # Generate OpenFlow 1.3 rules
         rules = rules_for_path(plan=plan, intent=intent, port_map=self.port_map)
         installed_count = install(self, rules)
+
+        # Keep the DB synchronizer's cache aligned when ST-7 invokes this method
+        # directly from the event handler, outside _sync_intents_from_db.
+        expected = 2 * len(plan.switches)
+        if installed_count == expected and hasattr(self, "_installed_plans"):
+            self._installed_plans[intent.id] = (plan.version, plan.computed_at)
 
         # Emit path_installed event
         bus = event_bus or self.event_bus

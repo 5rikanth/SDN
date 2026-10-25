@@ -3,6 +3,14 @@
 # Exercises M1, M3, M4 happy path end-to-end.
 set -euo pipefail
 
+ST7_CLOSE_LOOP=0
+if [[ "${1:-}" == "--st7" ]]; then
+    ST7_CLOSE_LOOP=1
+elif [[ "$#" -gt 0 ]]; then
+    echo "Usage: $0 [--st7]"
+    exit 2
+fi
+
 RYU_PID=""
 API_PID=""
 DRIVER_PID=""
@@ -182,7 +190,88 @@ conn.close()
 ")
     if [ "${MEASUREMENT_COUNT}" -ge 5 ] && [ "${COMPLETE_COUNT}" -ge 1 ]; then
         echo "PASS: ${MEASUREMENT_COUNT} live measurements persisted (${COMPLETE_COUNT} complete samples)"
+        if [ "${ST7_CLOSE_LOOP}" -eq 1 ]; then
+            echo "=== ST-7: Injecting a confirmed event through the SQLite process boundary ==="
+            INITIAL_ROUTE=$(python3.9 -c "
+from src.common import db
+conn = db.connect()
+path = db.current_path(conn, 'INT-001')
+print(','.join(path.switches) if path else '')
+conn.close()")
+            if [ "${INITIAL_ROUTE}" != "s1,s2,s3,s7" ] \
+                && [ "${INITIAL_ROUTE}" != "s1,s4,s5,s7" ]; then
+                echo "FAIL: expected initial or already-rerouted path, found '${INITIAL_ROUTE}'"
+                exit 1
+            fi
+            if [ "${INITIAL_ROUTE}" = "s1,s2,s3,s7" ]; then
+                python3.9 -c "
+from src.common import db
+from src.common.events import sla_violated
+conn = db.connect()
+db.save_event(conn, sla_violated('INT-001', 'delay_ms', 30.0, 20.0))
+conn.close()
+print('Injected INT-001 delay violation: observed 30 ms, guarantee 20 ms')
+"
+            else
+                echo "PASS: live telemetry already caused the expected alternate route"
+            fi
+
+            ALTERNATE_ROUTE="${INITIAL_ROUTE}"
+            if [ "${INITIAL_ROUTE}" = "s1,s2,s3,s7" ]; then
+                for attempt in $(seq 1 20); do
+                    ALTERNATE_ROUTE=$(python3.9 -c "
+from src.common import db
+conn = db.connect()
+path = db.current_path(conn, 'INT-001')
+print(','.join(path.switches) if path else '')
+conn.close()")
+                    if [ -n "${ALTERNATE_ROUTE}" ] && [ "${ALTERNATE_ROUTE}" != "${INITIAL_ROUTE}" ]; then
+                        break
+                    fi
+                    sleep 0.5
+                done
+            fi
+
+            if [ "${ALTERNATE_ROUTE}" != "s1,s4,s5,s7" ]; then
+                echo "FAIL: no expected alternate route installed; current='${ALTERNATE_ROUTE}'"
+                tail -n 80 "${LOG_DIR}/ryu.log" || true
+                exit 1
+            fi
+            REROUTE_COUNT=$(python3.9 -c "
+from src.common import db
+conn = db.connect()
+print(db.reroute_count(conn, 'INT-001'))
+conn.close()")
+            AUDIT_COUNT=$(python3.9 -c "
+from src.common import db
+conn = db.connect()
+events = db.events_for(conn, 'INT-001')
+print(sum(1 for event in events if {'measurement', 'threshold', 'decision', 'action'} <= set(event.payload)))
+conn.close()")
+            if [ "${REROUTE_COUNT}" -lt 1 ] || [ "${AUDIT_COUNT}" -lt 1 ]; then
+                echo "FAIL: reroute history or causal audit entry missing (reroutes=${REROUTE_COUNT}, audit=${AUDIT_COUNT})"
+                exit 1
+            fi
+            if ! sudo ovs-ofctl -O OpenFlow13 dump-flows s4 | grep -q "cookie=${EXPECTED_COOKIE}.*priority=100"; then
+                echo "FAIL: alternate route rules were not installed on s4"
+                exit 1
+            fi
+            POST_ROUTE_LOG=$(python3.9 -m src.telemetry.runtime \
+                --intent INT-001 --source-pid "${H1_PID}" --target 10.0.0.2 \
+                --switch s1 --samples 1 --interval 1)
+            echo "${POST_ROUTE_LOG}" | tee -a "${LOG_DIR}/telemetry.log"
+            if ! echo "${POST_ROUTE_LOG}" | grep -Eq 'delay_ms=[0-9]'; then
+                echo "FAIL: no live UDP probe reply after the reroute"
+                exit 1
+            fi
+            echo "PASS: controller consumed persisted violation and installed ${ALTERNATE_ROUTE}"
+            echo "PASS: matching UDP traffic received a probe reply after the reroute"
+            echo "PASS: reroute count=${REROUTE_COUNT}; causal audit entries=${AUDIT_COUNT}"
+        fi
         echo "=== SCENARIO S1: ALL ST-1 THROUGH ST-6 CHECKS PASSED ==="
+        if [ "${ST7_CLOSE_LOOP}" -eq 1 ]; then
+            echo "=== SCENARIO ST-7: LIVE REROUTE CHECK PASSED ==="
+        fi
         exit 0
     fi
     echo "FAIL: telemetry persistence incomplete (${MEASUREMENT_COUNT} total, ${COMPLETE_COUNT} complete)"

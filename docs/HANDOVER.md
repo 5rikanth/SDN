@@ -67,7 +67,14 @@ docker compose up -d
 docker compose exec -T sdn pytest tests -q
 docker compose exec -T sdn ruff check src tests topology experiments
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh
+docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh --st7
 ```
+
+The `--st7` mode runs the S1 live checks, writes one deterministic confirmed
+violation to SQLite, and waits for the controller to install the expected
+alternate route, checks its switch rules, sends a UDP probe across it, and checks
+the causal audit record. It is an integration check; the normal S1 command
+remains the ST-1 through ST-6 baseline.
 
 ## Read these first
 
@@ -84,3 +91,14 @@ even though the scenario reported sla.violated. The event was emitted in-process
 and not saved. ST-7 subscribes to these events and the audit log depends on them,
 so this must be fixed before ST-7 is considered working. Verify with:
 sqlite3 experiments/results/state.db 'select count(*) from events;'
+
+## ST-7 work in progress on `feat/st-07-close-loop`
+
+The local branch contains commit `1e9766e`, which persists confirmed telemetry
+events. The current working changes connect the controller's SQLite polling
+cycle to its in-process event bus and `ControlLoop`, so events written by the
+separate telemetry process can trigger path computation and enforcement. The
+loop and database-bridge tests pass on the host Python 3.12 environment, but the
+project is pinned to Python 3.9 and the live Mininet/OVS/Ryu reroute has not yet
+been verified in Docker. Keep ST-7 marked in progress until the in-container
+acceptance run confirms an alternate route is installed and measured.
