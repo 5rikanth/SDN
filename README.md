@@ -115,7 +115,8 @@ The project plan calls for four baselines × eight metrics, at least ten repetit
 and 95% confidence intervals. The checkout currently has a ten-run B0 harness and
 an E5 feasibility pilot; it does not contain the original E1–E8 measurement
 definitions or B1–B3 scenario specifications. The runner regenerates only evidence
-that is implemented and labels the remaining work.
+that is implemented and labels the remaining work. A candidate contract for review
+is in `docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is not the missing original plan.
 
 ```bash
 docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/run_all.sh | bash -s"

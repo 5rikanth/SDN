@@ -96,7 +96,9 @@ saved under `experiments/results/`. The corrected E5 pilot loaded 2,000 unique
 rules at each configured flow limit from 100 to 5,000 on OVS 2.17.12; this
 software-switch pilot showed no cap effect. Its CSV is in the same raw-results
 directory. B1–B3 remain without a checked-in experiment specification or the
-original E1–E8 metric contract.
+original E1–E8 metric contract. A candidate operational contract is documented
+in `docs/EVALUATION_PROTOCOL_PROPOSAL.md`; it is explicitly a proposal, not the
+original plan, and needs team review before B1–B3 measurements are labeled E1–E8.
 
 ## What is not true yet
 
