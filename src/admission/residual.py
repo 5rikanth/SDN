@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 import networkx as nx
 
 from src.common import db as dbm
-from src.common.models import IntentRecord, PathPlan
+from src.common.models import PathPlan
 from topology.topology_spec import build_graph
 
 

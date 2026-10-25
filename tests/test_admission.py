@@ -67,10 +67,11 @@ def test_infeasible_decision_has_a_reason(conn):
 
 
 def test_api_persists_admission_decision_event(conn):
-    from fastapi.testclient import TestClient
+    import asyncio
+    import json
+    from starlette.requests import Request
     from src.intent_manager import api as api_mod
 
-    api_mod.app.dependency_overrides[api_mod.get_db] = lambda: conn
     body = """intent:
   id: INT-801
   tenant: telemedicine-video
@@ -81,15 +82,18 @@ def test_api_persists_admission_decision_event(conn):
   guarantee:
     min_bandwidth_mbps: 20
 """
-    try:
-        response = TestClient(api_mod.app).post(
-            "/intent", content=body, headers={"content-type": "text/plain"}
-        )
-    finally:
-        api_mod.app.dependency_overrides.clear()
+    async def receive():
+        return {"type": "http.request", "body": body.encode(), "more_body": False}
 
-    assert response.status_code == 201, response.text
-    assert response.json()["state"] == "admitted"
+    request = Request(
+        {"type": "http", "method": "POST", "path": "/intent",
+         "headers": [(b"content-type", b"text/plain")]},
+        receive,
+    )
+    response = asyncio.run(api_mod.create_intent(request, conn))
+
+    assert response.status_code == 201
+    assert json.loads(response.body)["state"] == "admitted"
     events = dbm.events_for(conn, "INT-801")
     assert len(events) == 1
     assert events[0].type is EventType.ADMISSION_DECIDED
