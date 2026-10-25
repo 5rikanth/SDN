@@ -103,10 +103,29 @@ async def create_intent(
         type=EventType.ADMISSION_DECIDED,
         intent_id=rec.id,
         message=decision.reason,
-        payload={"verdict": decision.verdict.value, "reason": decision.reason},
+        payload={
+            "verdict": decision.verdict.value,
+            "reason": decision.reason,
+            "preempted_intent_id": decision.preempted_intent_id,
+        },
     )
     dbm.save_event(conn, decision_event)
     event_bus.publish(decision_event)
+
+    if decision.verdict.value == "preempt" and decision.preempted_intent_id:
+        victim = dbm.load_intent(conn, decision.preempted_intent_id)
+        if victim is not None:
+            victim.state = IntentState.PREEMPTED
+            dbm.save_intent(conn, victim)
+            preempted_event = Event(
+                type=EventType.INTENT_PREEMPTED,
+                intent_id=victim.id,
+                message=(f"Intent {victim.id} was preempted by higher-priority "
+                         f"intent {rec.id}: {decision.reason}"),
+                payload={"by_intent_id": rec.id, "reason": decision.reason},
+            )
+            dbm.save_event(conn, preempted_event)
+            event_bus.publish(preempted_event)
 
     response_data: Dict[str, Any] = {
         "id": rec.id,
@@ -114,6 +133,8 @@ async def create_intent(
         "priority": rec.priority,
         "state": rec.state.value,
     }
+    if decision.preempted_intent_id:
+        response_data["preempted_intent_id"] = decision.preempted_intent_id
 
     if plan is not None:
         dbm.save_path(conn, plan)

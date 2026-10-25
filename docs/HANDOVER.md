@@ -40,22 +40,37 @@ immediately.
 
 ## Current state
 
-**Done: ST-1 through ST-6.** The software-only suite passes, and Scenario S1 has
-been executed successfully inside the project container against Mininet, Open
-vSwitch and Ryu. The live run installed the INT-001 OpenFlow rules and 20 Mbps HTB
-queue, sent matching UDP traffic along `s1-s2-s3-s7`, collected five one-hertz
-samples and persisted all five measurements. Run the acceptance commands below to
-obtain the current test total rather than copying a stale count into reports.
+**Baseline ST-1 through ST-6:** Scenario S1 previously passed in the project
+container, installing INT-001 OpenFlow rules and a 20 Mbps HTB queue, sending
+matching UDP traffic along `s1-s2-s3-s7`, and persisting five one-hertz samples.
 
-**Next: ST-7, closing the control loop.** This is the single most important
-remaining step: subscribe to confirmed M5 violation events, compute an alternative
-path and safely ask M4 to install it. The implementation brief and acceptance tests
-are in `prompts/ST-07_close_the_loop.md`.
+**Local ST-7 branch (`feat/st-07-close-loop`):** Confirmed telemetry violations
+are persisted to SQLite and bridged into the controller process. The live `--st7`
+scenario passed in Python 3.9 with Mininet, OVS and Ryu: telemetry rerouted INT-001
+to `s1-s4-s5-s7`, one reroute and a causal audit entry were recorded, and a UDP
+probe replied after the route change. The container suite passed 245 tests (11
+skipped) and Ruff passed.
+
+**Local ST-8 branch (`feat/st-08-admission`):** Admission now accounts for active
+bandwidth reservations on current paths, chooses feasible residual-capacity routes,
+and persists an explainable ADMIT/REJECT event. The Python 3.9 container suite
+passed 241 tests (11 skipped); Ruff passed.
+
+**In progress: ST-9 preemption (`feat/st-09-preemption`):** Higher-priority
+requests may displace one lower-priority reservation if that makes a path feasible;
+the controller removes the victim's installed rules. The M5 detector already has
+EWMA, consecutive-confirmation, hysteresis and dwell gates. Run the acceptance
+commands below on the current feature branch before calling ST-9 complete.
+
+These branches are local and have not been pushed or merged. GitHub rejected the
+push for account `5rikanth` with HTTP 403; collaborator write access is needed before
+opening the required PRs. Protected `main` remains unchanged.
 
 ## What is not true yet
 
-1. The feedback loop is not closed, so traffic does not reroute automatically yet.
-2. The dashboard is not implemented; it remains ST-11 work.
+1. The dashboard is not implemented; it remains ST-11 work.
+2. ST-9 preemption is in progress; ST-10 two-phase updates and ST-12–14 evaluation
+   and final reporting remain.
 3. The live result is from containerized Mininet and Open vSwitch, not physical
    switching hardware.
 
@@ -83,22 +98,12 @@ remains the ST-1 through ST-6 baseline.
 3. `docs/decisions.md` - frozen design decisions and the ONOS fallback.
 4. `prompts/` - bounded implementation briefs, beginning with ST-7.
 
-## Known defect
+## Resolved defect: persisted violation events
 
-The events table in experiments/results/state.db is empty after the live
-Scenario S1 run. Measurements persisted (5 rows) but no event rows were written,
-even though the scenario reported sla.violated. The event was emitted in-process
-and not saved. ST-7 subscribes to these events and the audit log depends on them,
-so this must be fixed before ST-7 is considered working. Verify with:
-sqlite3 experiments/results/state.db 'select count(*) from events;'
-
-## ST-7 work in progress on `feat/st-07-close-loop`
-
-The local branch contains commit `1e9766e`, which persists confirmed telemetry
-events. The current working changes connect the controller's SQLite polling
-cycle to its in-process event bus and `ControlLoop`, so events written by the
-separate telemetry process can trigger path computation and enforcement. The
-loop and database-bridge tests pass on the host Python 3.12 environment, but the
-project is pinned to Python 3.9 and the live Mininet/OVS/Ryu reroute has not yet
-been verified in Docker. Keep ST-7 marked in progress until the in-container
-acceptance run confirms an alternate route is installed and measured.
+The original S1 run persisted measurements but not confirmed violation events.
+ST-7 now saves confirmed detector events to SQLite and has Ryu consume them through
+the controller's event bus and `ControlLoop`. The live Python 3.9 scenario observed
+a red telemetry breach, rerouted INT-001 from `s1-s2-s3-s7` to `s1-s4-s5-s7`,
+recorded one reroute and a causal audit entry, and received a UDP reply afterward.
+Recheck after a new run with:
+`sqlite3 experiments/results/state.db 'select count(*) from events;'`

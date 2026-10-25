@@ -100,12 +100,17 @@ class Team16Controller(BaseApp):
             dbm.init_db(conn)
             rows = conn.execute(
                 "SELECT id, state FROM intents "
-                "WHERE state IN ('pending', 'admitted', 'active', 'withdrawn')"
+                "WHERE state IN ('pending', 'admitted', 'active', 'withdrawn', 'preempted') "
+                "ORDER BY CASE state WHEN 'preempted' THEN 0 "
+                "WHEN 'withdrawn' THEN 1 ELSE 2 END, id"
             ).fetchall()
 
             for row in rows:
                 intent_id = str(row["id"])
-                if row["state"] == IntentState.WITHDRAWN.value:
+                if row["state"] in (
+                    IntentState.WITHDRAWN.value,
+                    IntentState.PREEMPTED.value,
+                ):
                     if intent_id in self._installed_plans:
                         self.remove_intent(intent_id)
                         self._installed_plans.pop(intent_id, None)

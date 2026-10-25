@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import networkx as nx
 
@@ -16,6 +16,7 @@ def residual_graph(
     conn: sqlite3.Connection,
     graph: Optional[nx.Graph] = None,
     exclude_intent_id: Optional[str] = None,
+    exclude_intent_ids: Optional[Iterable[str]] = None,
 ) -> nx.Graph:
     """Return a copy of topology with per-edge reserved and residual Mbps.
 
@@ -24,9 +25,12 @@ def residual_graph(
     ``bw_mbps`` field is retained for PathPlan reporting.
     """
     result = (graph if graph is not None else build_graph()).copy()
+    excluded = set(exclude_intent_ids or ())
+    if exclude_intent_id is not None:
+        excluded.add(exclude_intent_id)
     reserved: Dict[str, float] = {PathPlan.links_for([u, v])[0]: 0.0 for u, v in result.edges}
     for rec in dbm.active_intents(conn):
-        if rec.id == exclude_intent_id:
+        if rec.id in excluded:
             continue
         amount = float(rec.guarantee.min_bandwidth_mbps or 0.0)
         if amount <= 0:
@@ -47,10 +51,15 @@ def residual_graph(
     return result
 
 
-def tenant_paths(conn: sqlite3.Connection) -> Dict[str, List[List[str]]]:
+def tenant_paths(
+    conn: sqlite3.Connection, exclude_intent_ids: Optional[Iterable[str]] = None
+) -> Dict[str, List[List[str]]]:
     """Current paths keyed by tenant for isolation checks."""
     result: Dict[str, List[List[str]]] = {}
+    excluded = set(exclude_intent_ids or ())
     for rec in dbm.active_intents(conn):
+        if rec.id in excluded:
+            continue
         plan = dbm.current_path(conn, rec.id)
         if plan:
             result.setdefault(rec.tenant, []).append(list(plan.switches))
