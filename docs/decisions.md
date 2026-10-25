@@ -88,3 +88,13 @@ planning and should not be presented as though they came from the plan.
 
 **Consequences.** If the pilot shows no measurable difference, E5 is demoted and the
 evaluation leans on E2, E3, E4 and E6, which Mininet represents faithfully.
+
+### Pilot result (25 Oct 2026)
+
+The corrected pilot created 2,000 distinct OpenFlow matches per trial and tested
+the documented OVS bridge `other-config:flow-limit` values 100, 500, 1,000, 2,000
+and 5,000, plus an unlimited control. OVS 2.17.12 retained all 2,000 rules in every
+trial (about 0.29–0.31 seconds per batch). The tested software-switch configuration
+therefore showed no measurable cap effect; this does not establish hardware TCAM
+capacity or behavior. The raw CSV is
+`experiments/results/raw/flow_table_pilot_20261025161825.csv`.

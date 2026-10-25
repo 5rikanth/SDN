@@ -87,19 +87,23 @@ and publishes port 8080 on `127.0.0.1` only. The page and endpoints were checked
 the browser and container; the Python 3.9 suite passed 252 tests (11 skipped) and
 Ruff passed.
 
-**ST-12 evaluation, in progress (`feat/st-12-evaluation`):** The existing B0
-Mininet baseline completed ten live repetitions in Docker. Raw per-run CSV and a
-summary with Student t 95% confidence intervals are saved under
-`experiments/results/`. B1–B3 runners and the exact E1–E8 definitions are not in
-the checkout; the evaluation plan names them without specifying operational
-measurements, so the remaining comparisons are not yet reproducible.
+**Cumulative local ST-12 branch (`feat/st-12-evaluation`):** ST-1 through ST-11
+are present in one branch. The Python 3.9 container suite passes 260 tests
+(11 skipped), Ruff passes, and the ST-7, ST-9 and ST-10 live scenarios pass in
+sequence. ST-9 now removes its scenario-owned reservations on exit so it cannot
+bias later tests. The ten-run B0 baseline and its Student t 95% intervals are
+saved under `experiments/results/`. The corrected E5 pilot loaded 2,000 unique
+rules at each configured flow limit from 100 to 5,000 on OVS 2.17.12; this
+software-switch pilot showed no cap effect. Its CSV is in the same raw-results
+directory. B1–B3 remain without a checked-in experiment specification or the
+original E1–E8 metric contract.
 
 ## What is not true yet
 
-1. ST-12 is incomplete: only B0 has a runner and ten-run result; the E1–E8
-   definitions and B1–B3 setup need a team-approved measurement contract.
+1. ST-12 is incomplete: only B0 has ten-run measurements; B1–B3 and the original
+   E1–E8 metric contract are absent from the checkout.
 2. ST-13–14 figures, evaluation and final reporting remain.
-3. The live result is from containerized Mininet and Open vSwitch, not physical
+3. The live results are from containerized Mininet and Open vSwitch, not physical
    switching hardware.
 
 ## Acceptance commands
@@ -113,6 +117,7 @@ docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh --st7
 docker compose exec -T sdn bash experiments/scenarios/s9_preemption.sh
 docker compose exec -T sdn bash experiments/scenarios/s10_two_phase.sh
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/run_all.sh | bash -s -- --reuse-b0"
 curl http://localhost:8080/api/dashboard
 ```
 

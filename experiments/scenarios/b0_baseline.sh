@@ -21,6 +21,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+clean_mininet() {
+  timeout 15s python3.9 /usr/local/bin/mn -c >/dev/null 2>&1 || true
+}
+clean_mininet
+trap clean_mininet EXIT
+
 RESULT_DIR="experiments/results/raw"
 mkdir -p "${RESULT_DIR}"
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")

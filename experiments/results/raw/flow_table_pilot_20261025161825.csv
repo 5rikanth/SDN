@@ -1,0 +1,7 @@
+limit,requested_rules,installed_rules,rejected,install_seconds
+100,2000,2000,no,0.318
+500,2000,2000,no,0.345
+1000,2000,2000,no,0.306
+2000,2000,2000,no,0.324
+5000,2000,2000,no,0.318
+unlimited,2000,2000,no,0.319

@@ -115,35 +115,45 @@ def flowpilot():
     writer = csv.writer(sys.stdout)
     writer.writerow(['limit','requested_rules','installed_rules','rejected','install_seconds'])
     for lim in limits:
-        # Clean any existing Flow_Table rows before setting new limit
-        s1.cmd("ovs-vsctl -- --all destroy Flow_Table")
-        s1.cmd("ovs-vsctl clear bridge {s1.name} flow_tables")
+        # Clear the previous batch and configure the documented bridge cap.
+        s1.cmd(f"ovs-ofctl -O OpenFlow13 del-flows {s1.name}")
         if lim != "unlimited":
-            # set OpenFlow flow table limit
-            s1.cmd(f"ovs-vsctl -- set bridge {s1.name} flow_tables:0=@t -- --id=@t create Flow_Table flow_limit={lim} overflow_policy=refuse")
+            s1.cmd(f"ovs-vsctl set bridge {s1.name} other-config:flow-limit={lim}")
         else:
-            s1.cmd(f"ovs-vsctl clear bridge {s1.name} flow_tables")
-        # create dummy flow file
+            s1.cmd(f"ovs-vsctl clear bridge {s1.name} other-config:flow-limit")
+
+        # Distinct matches are essential: OVS replaces duplicate flows, which
+        # would otherwise make the requested rule count meaningless.
         flow_file = '/tmp/dummy_flows.txt'
         with open(flow_file, 'w') as f:
-            for _ in range(requested):
-                f.write('priority=1,ipv4,actions=drop\n')
+            for index in range(requested):
+                address = f"10.{(index // 65536) + 1}.{(index // 256) % 256}.{index % 256}"
+                f.write(f'priority=1,ip,nw_src={address},actions=drop\n')
+
+        before = s1.cmd(
+            f"ovs-ofctl -O OpenFlow13 dump-flows {s1.name}"
+        )
+        before_count = sum(line.lstrip().startswith("cookie=") for line in before.splitlines())
         start = time.time()
-        result = s1.cmd(f"ovs-ofctl add-flows {s1.name} {flow_file}")
+        result = s1.cmd(f"ovs-ofctl -O OpenFlow13 add-flows {s1.name} {flow_file} 2>&1")
         end = time.time()
-        rejected = 'yes' if 'error' in result.lower() else 'no'
-        installed = int(s1.cmd(f"ovs-ofctl dump-flows {s1.name} | grep -c 'cookie='").strip())
+        after = s1.cmd(f"ovs-ofctl -O OpenFlow13 dump-flows {s1.name}")
+        after_count = sum(line.lstrip().startswith("cookie=") for line in after.splitlines())
+        installed = max(0, after_count - before_count)
+        rejected = 'yes' if (
+            'error' in result.lower() or 'failed' in result.lower()
+        ) else 'no'
         install_secs = f"{end - start:.3f}"
         writer.writerow([lim, requested, installed, rejected, install_secs])
         if lim != "unlimited" and installed < requested:
             enforceable = True
-        # clean up flow table rows to avoid accumulation
-        s1.cmd(f"ovs-ofctl del-flows {s1.name}")
-    # verdict line printed to stdout after CSV (not part of CSV)
+    s1.cmd(f"ovs-ofctl -O OpenFlow13 del-flows {s1.name}")
+    s1.cmd(f"ovs-vsctl clear bridge {s1.name} other-config:flow-limit")
+    # Keep the raw file valid CSV; the shell wrapper replays this verdict.
     verdict = ("VERDICT: flow-table limit is enforceable - metric E5 is viable"
                if enforceable else
                "VERDICT: flow-table limit had no effect - metric E5 will be flat, see ADR-003")
-    print(verdict)
+    print(verdict, file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(description='Experiment driver')

@@ -122,10 +122,9 @@ def main():
     conn.close()
 
     show("STATUS")
-    print("   Built   : ST-1 stack freeze, ST-2 topology, ST-3 interfaces,")
-    print("             ST-4 intent API and path computation")
-    print("   Next    : ST-5 install these paths as real OpenFlow rules")
-    print("   Not yet : nothing touches a live network. That starts at ST-5.\n")
+    print("   This walkthrough demonstrates the software-only ST-1 through ST-4 path.")
+    print("   The current project status and live-network checks are documented in")
+    print("   README.md and docs/HANDOVER.md.")
 
 
 if __name__ == "__main__":

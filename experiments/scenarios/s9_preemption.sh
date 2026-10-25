@@ -11,9 +11,19 @@ cleanup() {
     for pid in "${TOPO_PID}" "${API_PID}" "${RYU_PID}"; do
         if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
             kill "${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
         fi
     done
     timeout 15s python3.9 /usr/local/bin/mn -c >/dev/null 2>&1 || true
+    # Do not let this demonstration's active reservation bias later scenarios.
+    python3.9 - <<'PY'
+from src.common import db
+conn = db.connect()
+db.init_db(conn)
+conn.execute("DELETE FROM intents WHERE id IN ('INT-901', 'INT-902')")
+conn.commit()
+conn.close()
+PY
 }
 trap cleanup EXIT INT TERM
 

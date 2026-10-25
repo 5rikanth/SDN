@@ -1,14 +1,14 @@
 # Setup and teammate handover
 
-This guide takes a new contributor from one downloaded zip to the software-only
+This guide takes a new contributor from the GitHub repository to the software-only
 demonstration and test suite. Start with the no-Docker path. Docker is needed only
 when you are ready to run Mininet, Open vSwitch and Ryu as a live network.
 
 ## 1. Install the prerequisites
 
 1. Install [Git](https://git-scm.com/downloads).
-2. Install [Python](https://www.python.org/downloads/) 3.9 or newer. Python 3.9 is
-   required for Ryu, but Ryu is not required by the software-only workflow.
+2. Install [Python](https://www.python.org/downloads/) 3.9. The live Ryu,
+   Mininet and Open vSwitch stack runs in Docker.
 3. For live-network work only, install
    [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows or
    macOS, or [Docker Engine](https://docs.docker.com/engine/install/) on Linux.
@@ -27,39 +27,16 @@ docker --version
 Git and Python should print version numbers. Docker may be absent if you are doing
 only software development.
 
-## 2. Obtain the repository
+## 2. Clone the source repository
 
-### Option A: unzip the Google Drive release
+Use the GitHub repository as the single source of truth. Do not use frozen Drive
+snapshots for project work.
 
-Download `intent-sdn-sla_YYYYMMDD.zip`, then extract it. Replace `YYYYMMDD` with
-the date in the downloaded filename.
+    git clone https://github.com/platynom/intent-sdn-sla.git
+    cd intent-sdn-sla
 
-Linux, macOS or WSL:
-
-```bash
-unzip intent-sdn-sla_YYYYMMDD.zip -d intent-sdn-sla
-cd intent-sdn-sla
-```
-
-Windows PowerShell:
-
-```powershell
-Expand-Archive .\intent-sdn-sla_YYYYMMDD.zip -DestinationPath .\intent-sdn-sla
-Set-Location .\intent-sdn-sla
-```
-
-### Option B: clone from GitHub
-
-This checkout currently has no Git remote configured, so obtain the real URL from
-the team instead of guessing it:
-
-```bash
-git clone TEAM_GITHUB_REPOSITORY_URL intent-sdn-sla
-cd intent-sdn-sla
-```
-
-In either case, verify that `README.md`, `Dockerfile`, `requirements.txt`, `src/`,
-`topology/` and `tests/` are present.
+Verify that README.md, Dockerfile, requirements.txt, src/, topology/ and tests/
+are present.
 
 ## 3. No-Docker path - use this first
 
@@ -72,7 +49,7 @@ Create the environment and install the pinned dependencies:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 On Windows PowerShell, activate with:
@@ -80,7 +57,7 @@ On Windows PowerShell, activate with:
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 Run the verifier, tests and demonstration:
@@ -91,17 +68,21 @@ python -m pytest tests -q
 python demo_st4.py
 ```
 
-Correct output includes:
+Correct output includes a passing test summary (the count may grow as the project
+adds coverage), plus:
 
 ```text
-217 passed
-Setup OK - you can start on ST-7
+Setup OK - software-only checks passed
 validation : accepted
 chosen path: s1 -> s2 -> s3 -> s7
 ```
 
 The precise demo computation time varies by machine. The selected path and the
 accepted/rejected decisions should not vary.
+
+The software-only requirements file excludes Ryu and its eventlet dependencies.
+Do not install requirements.txt on the host; Ryu, Mininet and Open vSwitch are
+container-only under ADR-001.
 
 ## 4. Docker path - needed only for a live network
 

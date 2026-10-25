@@ -45,23 +45,21 @@ def verify_python(failures: List[str]) -> None:
     """Check the supported offline floor and explain the special Ryu pin."""
     version = sys.version_info
     rendered = "{}.{}.{}".format(version.major, version.minor, version.micro)
-    if version < (3, 9):
+    if version[:2] != (3, 9):
         failures.append("Python version")
-        result("FAIL", "Python version", rendered, "install Python 3.9 or newer")
-    elif version[:2] == (3, 9):
-        result("PASS", "Python version", rendered + " (Ryu-compatible version)")
-    else:
         result(
-            "WARN",
+            "FAIL",
             "Python version",
-            rendered + "; offline work is supported, but Ryu requires Python 3.9",
-            "use the Docker path for Ryu and the live network",
+            rendered + " (the project pins Python 3.9)",
+            "use Python 3.9 for the host workflow; live Ryu remains container-only",
         )
+    else:
+        result("PASS", "Python version", rendered + " (project-pinned version)")
 
 
 def verify_imports(failures: List[str]) -> None:
     """Import each host dependency and identify live-only packages explicitly."""
-    requirements = requirement_names(ROOT / "requirements.txt")
+    requirements = requirement_names(ROOT / "requirements-dev.txt")
     for distribution in requirements:
         key = distribution.lower()
         if key == "ryu":
@@ -80,7 +78,7 @@ def verify_imports(failures: List[str]) -> None:
                 "FAIL",
                 "package " + distribution,
                 "cannot import {} ({})".format(module_name, exc),
-                "run: python -m pip install -r requirements.txt",
+                "run: python -m pip install -r requirements-dev.txt",
             )
         else:
             result("PASS", "package " + distribution, "imported " + module_name)
@@ -98,7 +96,7 @@ def verify_directories(failures: List[str]) -> None:
                 "FAIL",
                 "directory " + name,
                 "missing",
-                "extract the complete release zip again",
+                "clone or reset the GitHub repository, then retry",
             )
 
 
@@ -174,14 +172,17 @@ def main() -> int:
     failures: List[str] = []
     verify_python(failures)
     verify_directories(failures)
-    verify_imports(failures)
-    verify_tests(failures)
-    verify_demo(failures)
+    if sys.version_info[:2] == (3, 9):
+        verify_imports(failures)
+        verify_tests(failures)
+        verify_demo(failures)
+    else:
+        result("SKIP", "runtime checks", "install Python 3.9 to run the host workflow")
     verify_docker()
     if failures:
         print("Setup incomplete - see failures above")
         return 1
-    print("Setup OK - you can start on ST-7")
+    print("Setup OK - software-only checks passed")
     return 0
 
 

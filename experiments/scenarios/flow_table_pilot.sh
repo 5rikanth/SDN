@@ -10,7 +10,25 @@ mkdir -p "${RESULT_DIR}"
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
 CSV_FILE="${RESULT_DIR}/flow_table_pilot_${TIMESTAMP}.csv"
 
-# Run the driver which prints CSV rows and a verdict line.
-python -m experiments.scenarios._driver flowpilot > "${CSV_FILE}"
+# A previous interrupted Mininet run can leave kernel interfaces behind.
+clean_mininet() {
+  timeout 15s python3.9 /usr/local/bin/mn -c >/dev/null 2>&1 || true
+}
+clean_mininet
+
+# Keep the raw artifact parseable while still showing the human-readable verdict.
+VERDICT_FILE=$(mktemp)
+cleanup() {
+  status=$?
+  trap - EXIT
+  if [ -s "${VERDICT_FILE}" ]; then
+    cat "${VERDICT_FILE}"
+  fi
+  rm -f "${VERDICT_FILE}"
+  clean_mininet
+  exit "${status}"
+}
+trap cleanup EXIT
+python -m experiments.scenarios._driver flowpilot > "${CSV_FILE}" 2> "${VERDICT_FILE}"
 
 echo "Flow‑table pilot results written to ${CSV_FILE}"

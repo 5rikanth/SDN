@@ -95,7 +95,7 @@ tests/                unit tests plus one end-to-end smoke test
 
 ```bash
 python3.9 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 pytest tests -q          # software-only suite; no network or root needed
 ruff check src tests topology experiments
 ```
@@ -111,12 +111,15 @@ interface needs agreement from both sides, recorded in `docs/decisions.md`.
 
 ## Evaluation
 
-Four baselines × eight metrics, at least ten repetitions each, 95% confidence
-intervals, fixed seeds. Raw CSV is committed next to the plotting scripts so every
-figure is regenerable.
+The project plan calls for four baselines × eight metrics, at least ten repetitions
+and 95% confidence intervals. The checkout currently has a ten-run B0 harness and
+an E5 feasibility pilot; it does not contain the original E1–E8 measurement
+definitions or B1–B3 scenario specifications. The runner regenerates only evidence
+that is implemented and labels the remaining work.
 
 ```bash
-./experiments/run_all.sh        # reproduces every figure from scratch
+docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/run_all.sh | bash -s"
+# Add --reuse-b0 to reuse the existing ten-run CSV instead of running B0 again.
 ```
 
 | | Baseline |
@@ -128,12 +131,14 @@ figure is regenerable.
 
 ## Status
 
-ST-1 through ST-11 have local feature-branch implementations and container
-validation. The live ST-10 scenario verifies a strict versioned route update across
-Mininet, Open vSwitch and Ryu. ST-11 adds the read-only dashboard at
-`http://localhost:8080`. ST-12 has a ten-run B0 baseline sample; remaining B1–B3
-comparisons need the missing metric and setup definitions. ST-13–14 and final
-reporting remain. See
+The cumulative local ST-12 branch contains ST-1 through ST-11. Its current
+container validation passes 260 tests (11 skipped) with Ruff clean; live ST-7,
+ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the read-only dashboard at
+`http://localhost:8080`. ST-12 has a ten-run B0 baseline sample and a corrected
+flow-table pilot: on OVS 2.17.12, 2,000 unique rules installed at every tested
+limit from 100 through 5,000, so the software-switch E5 cap had no observed effect.
+The run_all runner generates a B0 summary and B0/E5 figures; B1–B3 comparisons and
+ST-13–14 reporting remain. See
 [`docs/HANDOVER.md`](docs/HANDOVER.md) for branch status and validation results.
 
 **Resolved ST-7 defect.** Confirmed violation events are persisted to SQLite for
