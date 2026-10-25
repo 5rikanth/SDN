@@ -9,7 +9,9 @@ docker compose up --build -d          # pinned Mininet + OVS + Ryu
 docker compose exec sdn make demo     # topology, controller, one URLLC intent
 ```
 
-The live dashboard is planned for ST-11 and is not implemented yet.
+The read-only operator dashboard is available locally at `http://localhost:8080`
+after `docker compose up --build -d`. It reads the shared SQLite database and
+displays intents, current paths, recent measurements and the audit trail.
 
 ---
 
@@ -81,7 +83,7 @@ src/
   pathing/            M3  yen_ksp.py, prune.py
   enforcement/        M4  flowmod.py, queues.py, controller.py
   telemetry/          M5  collector.py, probes.py, detector.py, runtime.py
-  dashboard/          M6  planned for ST-11
+  dashboard/          M6  read-only operator dashboard and audit view
   common/             models.py, db.py, events.py, audit.py
 topology/             Mininet topology and tc link budgets
 experiments/          run_all.sh, scenarios/, results/raw/ (CSV committed), plots/
@@ -126,20 +128,15 @@ figure is regenerable.
 
 ## Status
 
-ST-1 through ST-6 are complete. The Docker image builds, the software-only test
-suite passes, and Scenario S1 has been executed in Docker against a live Mininet,
-Open vSwitch and Ryu datapath. It installs an accepted intent, attaches its HTB
-queue, sends matching UDP traffic, collects one-hertz telemetry and persists the
-measurements. ST-7 (automatic closed-loop rerouting) is next; the dashboard remains
-planned for ST-11.
+ST-1 through ST-11 have local feature-branch implementations and container
+validation. The live ST-10 scenario verifies a strict versioned route update across
+Mininet, Open vSwitch and Ryu. ST-11 adds the read-only dashboard at
+`http://localhost:8080`; evaluation runs and final reporting remain. See
+[`docs/HANDOVER.md`](docs/HANDOVER.md) for branch status and validation results.
 
-**Known defect blocking ST-7.** After the Scenario S1 run, `experiments/results/state.db`
-holds 5 measurement rows but zero rows in `events`, despite the scenario reporting
-`sla.violated`. The event was emitted in-process and never persisted. ST-7 subscribes
-to these events and the audit log reads from the same table, so this must be fixed
-first. Verify with
-`sqlite3 experiments/results/state.db 'select count(*) from events;'`.
-Full write-up in [`docs/HANDOVER.md`](docs/HANDOVER.md).
+**Resolved ST-7 defect.** Confirmed violation events are persisted to SQLite for
+the controller and audit log to consume. The live ST-7 scenario previously verified
+the persisted event, reroute, causal audit entry and post-reroute UDP delivery.
 
 ## Licence
 

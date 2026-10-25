@@ -79,11 +79,18 @@ These branches are local and have not been pushed or merged. GitHub rejected the
 push for account `5rikanth` with HTTP 403; collaborator write access is needed before
 opening the required PRs. Protected `main` remains unchanged.
 
+**Local ST-11 branch (`feat/st-11-dashboard`):** The M6 dashboard now serves a
+read-only operator view of intent state, paths, latest SLA measurements, selectable
+measurement charts and the persisted audit trail. JSON endpoints expose the same
+overview and per-intent detail. Compose runs the dashboard in a separate container
+and publishes port 8080 on `127.0.0.1` only. The page and endpoints were checked in
+the browser and container; the Python 3.9 suite passed 252 tests (11 skipped) and
+Ruff passed.
+
 ## What is not true yet
 
-1. The dashboard is not implemented; it remains ST-11 work.
-2. ST-11 dashboard and ST-12–14 evaluation and final reporting remain.
-3. The live result is from containerized Mininet and Open vSwitch, not physical
+1. ST-12–14 evaluation and final reporting remain.
+2. The live result is from containerized Mininet and Open vSwitch, not physical
    switching hardware.
 
 ## Acceptance commands
@@ -97,6 +104,7 @@ docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh --st7
 docker compose exec -T sdn bash experiments/scenarios/s9_preemption.sh
 docker compose exec -T sdn bash experiments/scenarios/s10_two_phase.sh
+curl http://localhost:8080/api/dashboard
 ```
 
 The `--st7` mode runs the S1 live checks, writes one deterministic confirmed

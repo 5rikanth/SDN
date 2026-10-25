@@ -1,8 +1,8 @@
 # One command to a running system:  docker compose up --build
 #
 # NOTE: Mininet and Open vSwitch need kernel network namespaces and the OVS
-# datapath, so this container must run privileged with host networking.
-# That is a Mininet requirement, not a shortcut on our part.
+# datapath, so the SDN container runs privileged with host networking.
+# The read-only dashboard is isolated and published only on localhost.
 services:
   sdn:
     build:
@@ -11,7 +11,7 @@ services:
     image: team16/intent-sdn-sla:dev
     container_name: intent-sdn-sla
     privileged: true            # required by Mininet / OVS datapath
-    network_mode: host          # controller listens on 6653, dashboard on 8080
+    network_mode: host          # Ryu listens on 6653
     volumes:
       - .:/app                  # live code reload during development
       - /lib/modules:/lib/modules:ro
@@ -19,3 +19,26 @@ services:
     command: bash
     stdin_open: true
     tty: true
+
+  dashboard:
+    image: team16/intent-sdn-sla:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: []
+    command:
+      - python3.9
+      - -m
+      - uvicorn
+      - src.dashboard.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - sdn
