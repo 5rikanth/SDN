@@ -6,7 +6,8 @@ from typing import Optional, Set
 
 from src.common import db
 from src.common.events import Event, EventBus, EventType, Severity
-from src.common.models import IntentState, OnViolation
+from src.common.models import Consistency, IntentState, OnViolation
+from src.enforcement import two_phase
 from src.pathing.compute import compute_path
 
 
@@ -96,6 +97,11 @@ class ControlLoop:
                 f"current path retained: {detail or 'no path-computation reason'}",
                 EventType.PATH_INFEASIBLE,
                 Severity.WARNING,
+            )
+
+        if intent.consistency is Consistency.STRICT:
+            new_plan = two_phase.with_version(
+                new_plan, two_phase.next_version(current)
             )
 
         try:

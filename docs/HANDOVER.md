@@ -64,6 +64,17 @@ Ryu, verifying victim state, the persisted preemption event and flow-rule remova
 The container suite passed 245 tests (11 skipped) and Ruff passed. The M5 detector
 already has EWMA, consecutive-confirmation, hysteresis and dwell gates.
 
+**Local ST-10 branch (`feat/st-10-two-phase`):** Strict paths now stage tagged
+forwarding rules, flip untagged ingress classifiers after an OpenFlow barrier,
+retain the old version through a bounded Mininet drain interval, then remove its
+rules. Versioned classifier cookies and VLAN matches let withdrawal and cleanup
+target the right rules. The live `s10_two_phase.sh` scenario passed in the Python
+3.9 container: it flipped VLAN 100 to VLAN 101 onto the alternate route, removed
+the old north-path rules, and delivered a UDP probe afterward. The suite passed
+248 tests (11 skipped) and Ruff passed. The drain interval is sized for this
+emulated topology; production WAN deployments need measured packet-lifetime
+bounds before claiming lossless updates.
+
 These branches are local and have not been pushed or merged. GitHub rejected the
 push for account `5rikanth` with HTTP 403; collaborator write access is needed before
 opening the required PRs. Protected `main` remains unchanged.
@@ -71,7 +82,7 @@ opening the required PRs. Protected `main` remains unchanged.
 ## What is not true yet
 
 1. The dashboard is not implemented; it remains ST-11 work.
-2. ST-10 two-phase updates and ST-12–14 evaluation and final reporting remain.
+2. ST-11 dashboard and ST-12–14 evaluation and final reporting remain.
 3. The live result is from containerized Mininet and Open vSwitch, not physical
    switching hardware.
 
@@ -85,6 +96,7 @@ docker compose exec -T sdn ruff check src tests topology experiments
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh
 docker compose exec -T sdn bash experiments/scenarios/s1_single_intent.sh --st7
 docker compose exec -T sdn bash experiments/scenarios/s9_preemption.sh
+docker compose exec -T sdn bash experiments/scenarios/s10_two_phase.sh
 ```
 
 The `--st7` mode runs the S1 live checks, writes one deterministic confirmed

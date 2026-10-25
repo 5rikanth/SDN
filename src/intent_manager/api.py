@@ -16,7 +16,8 @@ from fastapi.responses import JSONResponse
 
 from src.common import db as dbm
 from src.common.events import Event, EventBus, EventType
-from src.common.models import IntentRecord, IntentState, to_dict
+from src.common.models import Consistency, IntentRecord, IntentState, to_dict
+from src.enforcement import two_phase
 from src.admission.feasibility import assess
 from src.intent_manager.validator import validate
 from topology.topology_spec import build_graph
@@ -97,6 +98,8 @@ async def create_intent(
     # M2 admission uses the persisted active paths to account for reservations.
     graph = build_graph()
     decision, plan = assess(conn, rec, graph)
+    if plan is not None and rec.consistency is Consistency.STRICT:
+        plan = two_phase.with_version(plan, two_phase.next_version())
     rec.state = IntentState.ADMITTED if decision.admitted else IntentState.REJECTED
     dbm.save_intent(conn, rec)
     decision_event = Event(

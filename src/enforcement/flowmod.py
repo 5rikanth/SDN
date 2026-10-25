@@ -44,7 +44,16 @@ def cookie_for_intent(intent_id: str) -> int:
     track, and bulk-delete all flow rules installed for that intent across the network.
     """
     digest = hashlib.sha256(intent_id.encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], byteorder="big", signed=False)
+    return int.from_bytes(digest[:8], byteorder="big", signed=False) & ((1 << 48) - 1)
+
+
+def cookie_for_version(intent_id: str, version: int) -> int:
+    """Return a version-specific cookie for ingress classifiers."""
+    if version not in (0, 1):
+        raise ValueError("strict path versions must be 0 or 1")
+    # Transit cookies use only the low 48 bits; reserve a separate namespace
+    # so classifier deletes cannot match transit rules.
+    return (1 << (62 + version)) | cookie_for_intent(intent_id)
 
 
 def build_match(datapath: Any, intent: IntentRecord) -> Any:
@@ -212,12 +221,25 @@ def install(controller: Any, rules: List[Dict[str, Any]]) -> int:
             elif proto == "icmp":
                 match_kwargs["ip_proto"] = inet.IPPROTO_ICMP
 
+            if "vlan_id" in match_dict:
+                match_kwargs["vlan_vid"] = ofproto.OFPVID_PRESENT | int(match_dict["vlan_id"])
+            elif match_dict.get("vlan_untagged"):
+                match_kwargs["vlan_vid"] = ofproto.OFPVID_NONE
+
             match = parser.OFPMatch(**match_kwargs)
 
             actions = []
             for act in rule.get("actions", []):
-                if act.get("type") == "OUTPUT":
+                action_type = act.get("type")
+                if action_type == "OUTPUT":
                     actions.append(parser.OFPActionOutput(act["port"]))
+                elif action_type == "PUSH_VLAN":
+                    actions.append(parser.OFPActionPushVlan(ether.ETH_TYPE_8021Q))
+                elif action_type == "SET_VLAN":
+                    vlan_vid = ofproto.OFPVID_PRESENT | int(act["vlan_id"])
+                    actions.append(parser.OFPActionSetField(vlan_vid=vlan_vid))
+                elif action_type == "POP_VLAN":
+                    actions.append(parser.OFPActionPopVlan())
 
             inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
             mod = parser.OFPFlowMod(
@@ -235,7 +257,11 @@ def install(controller: Any, rules: List[Dict[str, Any]]) -> int:
     return installed_count
 
 
-def remove(controller: Any, cookie: int) -> int:
+def remove(
+    controller: Any,
+    cookie: int,
+    cookie_mask: int = 0xFFFFFFFFFFFFFFFF,
+) -> int:
     """
     Remove all flow rules matching the specified cookie across all datapaths.
 
@@ -256,7 +282,7 @@ def remove(controller: Any, cookie: int) -> int:
             mod = parser.OFPFlowMod(
                 datapath=datapath,
                 cookie=cookie,
-                cookie_mask=0xFFFFFFFFFFFFFFFF,
+                cookie_mask=cookie_mask,
                 command=ofproto.OFPFC_DELETE,
                 out_port=ofproto.OFPP_ANY,
                 out_group=ofproto.OFPG_ANY,
@@ -266,4 +292,56 @@ def remove(controller: Any, cookie: int) -> int:
         else:
             removed_count += 1
 
+    return removed_count
+
+
+def remove_vlan_version(controller: Any, cookie: int, vlan_id: int) -> int:
+    """Delete only tagged forwarding rules for one strict-update VLAN version."""
+    removed_count = 0
+    if hasattr(controller, "get_all_datapaths"):
+        datapaths = controller.get_all_datapaths()
+    elif hasattr(controller, "datapaths"):
+        datapaths = list(controller.datapaths.values())
+    else:
+        datapaths = []
+
+    for datapath in datapaths:
+        if RYU_AVAILABLE and datapath is not None:
+            parser = datapath.ofproto_parser
+            ofproto = datapath.ofproto
+            match = parser.OFPMatch(
+                vlan_vid=ofproto.OFPVID_PRESENT | int(vlan_id)
+            )
+            datapath.send_msg(parser.OFPFlowMod(
+                datapath=datapath,
+                cookie=cookie,
+                cookie_mask=0xFFFFFFFFFFFFFFFF,
+                command=ofproto.OFPFC_DELETE,
+                out_port=ofproto.OFPP_ANY,
+                out_group=ofproto.OFPG_ANY,
+                match=match,
+            ))
+            removed_count += 1
+        elif not RYU_AVAILABLE:
+            removed_count += 1
+    return removed_count
+
+
+def remove_untagged(controller: Any, cookie: int) -> int:
+    """Delete only the legacy untagged rules for an intent cookie."""
+    removed_count = 0
+    datapaths = controller.get_all_datapaths() if hasattr(controller, "get_all_datapaths") else list(getattr(controller, "datapaths", {}).values())
+    for datapath in datapaths:
+        if RYU_AVAILABLE and datapath is not None:
+            ofproto = datapath.ofproto
+            match = datapath.ofproto_parser.OFPMatch(vlan_vid=ofproto.OFPVID_NONE)
+            mod = datapath.ofproto_parser.OFPFlowMod(
+                datapath=datapath, cookie=cookie, cookie_mask=0xFFFFFFFFFFFFFFFF,
+                command=ofproto.OFPFC_DELETE, out_port=ofproto.OFPP_ANY,
+                out_group=ofproto.OFPG_ANY, match=match,
+            )
+            datapath.send_msg(mod)
+            removed_count += 1
+        elif not RYU_AVAILABLE:
+            removed_count += 1
     return removed_count
