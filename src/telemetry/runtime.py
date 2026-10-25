@@ -14,6 +14,12 @@ from src.telemetry.detector import ViolationDetector
 from src.telemetry.probes import ActiveProbeSource
 
 
+def persist_confirmed_event(conn, event) -> None:
+    """Persist one detector transition when a confirmed event was emitted."""
+    if event is not None:
+        db.save_event(conn, event)
+
+
 def flow_bytes(switch: str, cookie: int) -> int:
     """Read byte counters for one intent cookie from one OpenFlow switch."""
     result = subprocess.run(
@@ -105,6 +111,9 @@ def main() -> int:
             sample.throughput_mbps,
         )
         event = detector.observe(sample, now=started)
+        # The detector emits confirmed transitions in-process. Persist them
+        # alongside measurements so ST-7 and the audit view can consume them.
+        persist_confirmed_event(conn, event)
         event_name = event.type.value if event else "none"
         probe_error = ""
         if probe.delay_ms is None:
