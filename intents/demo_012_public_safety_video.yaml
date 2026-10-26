@@ -1,0 +1,18 @@
+intent:
+  id: INT-012
+  tenant: public-safety-live-video
+  priority: 2
+  match:
+    src: 10.0.0.5/32
+    dst: 10.0.0.6/32
+    proto: udp
+    dport: 5603
+  guarantee:
+    min_bandwidth_mbps: 12
+    max_latency_ms: 20
+    max_loss_pct: 0.5
+    avoid_links:
+      - s1-s2
+  consistency: strict
+  on_violation: reroute
+  dwell_seconds: 5
