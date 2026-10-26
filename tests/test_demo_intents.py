@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from src.common import db
@@ -74,7 +75,6 @@ def test_demo_telemetry_is_labelled_and_seeded_only_once(tmp_path, monkeypatch):
         ("INT-010", "measurement.taken"),
     ).fetchall()
     assert len(event_rows) == 1
-    import json
     marker = json.loads(event_rows[0]["payload_json"])
     assert marker["source"] == "demo-simulation"
     assert marker["simulated"] is True
