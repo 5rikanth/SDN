@@ -8,14 +8,13 @@ ST-7 through ST-12 work.
 ## Get the checkpoint
 
 ```bash
-git clone https://github.com/5rikanth/SDN.git
+git clone --branch feat/st-12-evaluation --single-branch https://github.com/5rikanth/SDN.git
 cd SDN
-git fetch origin
-git checkout feat/st-12-evaluation
 ```
 
-If GitHub shows the branch under a pull request, use the branch listed there.
-The repository's `main` branch is protected; make changes on a branch named
+The checkpoint is published on `feat/st-12-evaluation`. At upload time the
+destination repository had no `main` branch, so there is no PR yet. Once the
+team establishes its protected default branch, make changes on a branch named
 `feat/<subtask>-<name>`, push it, and open a pull request for review.
 
 ## Read first

@@ -40,8 +40,10 @@ work and raw experiment results. `main` was not modified.
    `docs/EVALUATION_PROTOCOL_PROPOSAL.md` are explicitly a proposal.
 4. Complete the approved ST-12 comparison, then obtain the missing ST-13/ST-14
    briefs and finish those milestones.
-5. Push `feat/st-12-evaluation` and open a PR when GitHub access is available.
-   The connected account previously received HTTP 403; no PR has been opened.
+5. The checkpoint is now published at
+   `https://github.com/5rikanth/SDN/tree/feat/st-12-evaluation`. The destination
+   had no `main` branch at upload time, so a PR could not be opened. Once the
+   team establishes its protected default branch, open a PR for review.
 
 ## Project constraints
 
