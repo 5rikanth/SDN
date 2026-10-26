@@ -10,6 +10,7 @@ from src.common.models import IntentRecord, IntentState
 from src.intent_manager.validator import validate_yaml
 from src.pathing.compute import compute_path
 from scripts import seed_demo_intents
+from src.dashboard import app as dashboard_app
 from topology.topology_spec import HOSTS, build_graph
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,10 +81,31 @@ def test_demo_telemetry_is_labelled_and_seeded_only_once(tmp_path, monkeypatch):
     assert marker["simulated"] is True
     conn.close()
 
+    detail = dashboard_app.intent_detail("INT-010")
+    assert detail["telemetry_source"] == "simulated"
+    assert len(detail["measurements"]) == 6
+    assert detail["path_status"] == "computed"
+
     assert seed_demo_intents.seed_demo_measurements("INT-010", sample_count=6) is False
     conn = real_connect(db_path)
     count = conn.execute(
         "SELECT COUNT(*) FROM measurements WHERE intent_id = ?", ("INT-010",)
     ).fetchone()[0]
-    conn.close()
     assert count == 6
+
+    # Once an actual collector row arrives after the simulated sample window,
+    # the dashboard must use live-only data rather than mixing the two.
+    db.save_measurement(
+        conn,
+        "INT-010",
+        marker["sample_end_at"] + 1.0,
+        delay_ms=3.5,
+        jitter_ms=0.1,
+        loss_pct=0.0,
+        throughput_mbps=4.5,
+    )
+    conn.close()
+    live_detail = dashboard_app.intent_detail("INT-010")
+    assert live_detail["telemetry_source"] == "live"
+    assert len(live_detail["measurements"]) == 1
+    assert live_detail["latest_measurement"]["throughput_mbps"] == 4.5
