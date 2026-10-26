@@ -1,0 +1,16 @@
+intent:
+  id: INT-011
+  tenant: remote-surgery-video
+  priority: 1
+  match:
+    src: 10.0.0.3/32
+    dst: 10.0.0.4/32
+    proto: udp
+    dport: 5602
+  guarantee:
+    min_bandwidth_mbps: 20
+    max_latency_ms: 10
+    max_loss_pct: 0.2
+  consistency: strict
+  on_violation: reroute
+  dwell_seconds: 3
