@@ -1,0 +1,16 @@
+intent:
+  id: INT-013
+  tenant: smart-grid-protection
+  priority: 1
+  match:
+    src: 10.0.0.7/32
+    dst: 10.0.0.8/32
+    proto: udp
+    dport: 5604
+  guarantee:
+    min_bandwidth_mbps: 5
+    max_latency_ms: 5
+    max_loss_pct: 0.1
+  consistency: strict
+  on_violation: reroute
+  dwell_seconds: 2
