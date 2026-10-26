@@ -1,5 +1,8 @@
 # Intent-Based SDN for 5G SLA Enforcement
 
+[Continue from the latest project checkpoint](README_CONTINUE.md) — read order,
+Python/Docker setup, current status, and next steps for a new contributor.
+
 Write down a service promise. The system installs it on the network, measures whether
 it is being kept, and re-plans automatically when it is not — on one laptop.
 
