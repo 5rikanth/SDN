@@ -12,13 +12,13 @@ docker compose up --build -d          # pinned Mininet + OVS + Ryu
 docker compose exec sdn make demo     # topology, controller, one URLLC intent
 ```
 
-The interactive operator dashboard is available locally at `http://localhost:8080`
+The operator dashboard is available locally at `http://localhost:8080`
 after `docker compose up --build -d`. It displays intents, current paths, recent
-measurements and the audit trail. Use **Create your own application intent** to enter
-your application/tenant, traffic match, priority, SLA guarantees and violation policy.
-You can preview or download the YAML, or submit it to M1 for validation and admission.
-The `intent-api` service remains internal to Docker Compose; only the dashboard is
-published on localhost.
+measurements and the audit trail. Four realistic application intents—V2X emergency
+telemetry, remote-surgery video, public-safety live video, and smart-grid protection—
+are seeded automatically when Docker Compose starts. No manual intent entry is
+required. The internal M1 API is not published to the host; the dashboard remains
+read-only.
 
 ---
 
@@ -90,7 +90,7 @@ src/
   pathing/            M3  yen_ksp.py, prune.py
   enforcement/        M4  flowmod.py, queues.py, controller.py
   telemetry/          M5  collector.py, probes.py, detector.py, runtime.py
-  dashboard/          M6  interactive dashboard, custom intent builder, and audit view
+  dashboard/          M6  interactive telemetry dashboard and audit view
   common/             models.py, db.py, events.py, audit.py
 topology/             Mininet topology and tc link budgets
 experiments/          run_all.sh, scenarios/, results/raw/ (CSV committed), plots/
