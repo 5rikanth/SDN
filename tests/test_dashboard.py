@@ -1,6 +1,8 @@
-"""Read-only dashboard data and audit contracts."""
+"""Dashboard data, custom intent builder, and audit API contracts."""
 
 from __future__ import annotations
+
+import json
 
 import pytest
 from fastapi import HTTPException
@@ -74,8 +76,50 @@ def test_dashboard_unknown_intent_returns_not_found(dashboard_db):
     assert error.value.status_code == 404
 
 
-def test_dashboard_html_is_self_contained_and_read_only():
+def test_dashboard_html_has_custom_intent_builder():
     page = dashboard_app.dashboard()
     assert "Intent SDN SLA" in page
     assert "/api/dashboard" in page
-    assert "read-only" in page
+    assert "Create your own application intent" in page
+    assert "/api/submit-intent" in page
+    assert "Minimum bandwidth (Mbps)" in page
+    assert "Download YAML" in page
+
+
+def test_submit_intent_forwards_custom_document_to_m1(monkeypatch):
+    monkeypatch.setenv("TEAM16_INTENT_API_URL", "http://intent-api:8000/")
+    captured = {}
+    response_body = b'{"id":"INT-002","state":"admitted","switches":["s1","s2"]}'
+
+    class FakeResponse:
+        status = 201
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return response_body
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["method"] = request.get_method()
+        captured["document"] = json.loads(request.data.decode("utf-8"))
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(dashboard_app.urllib.request, "urlopen", fake_urlopen)
+    document = {"intent": {"id": "INT-002", "tenant": "custom-telemetry"}}
+
+    result = dashboard_app.submit_intent(document)
+
+    assert result == {
+        "http_status": 201,
+        "intent_result": {"id": "INT-002", "state": "admitted", "switches": ["s1", "s2"]},
+    }
+    assert captured["url"] == "http://intent-api:8000/intent"
+    assert captured["method"] == "POST"
+    assert captured["document"] == document
+    assert captured["timeout"] == 12
