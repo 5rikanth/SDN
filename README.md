@@ -149,9 +149,9 @@ docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b3_clo
 
 The cumulative local ST-12 branch contains ST-1 through ST-11. Its current
 container validation passes 261 tests (11 skipped) with Ruff clean; live ST-7,
-ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the operator dashboard at
-`http://localhost:8080`; the custom intent builder submits user-defined SLA requirements
-to M1 for validation and admission. ST-12 has a ten-run B0 baseline sample and a corrected
+ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the read-only operator dashboard at
+`http://localhost:8080`. Four realistic application intents are seeded automatically
+at startup for repeatable demonstrations. ST-12 has a ten-run B0 baseline sample and a corrected
 flow-table pilot: on OVS 2.17.12, 2,000 unique rules installed at every tested
 limit from 100 through 5,000, so the software-switch E5 cap had no observed effect.
 An open-loop B1 pilot has ten POST-response latency runs (mean 61.982 ms,
