@@ -12,9 +12,13 @@ docker compose up --build -d          # pinned Mininet + OVS + Ryu
 docker compose exec sdn make demo     # topology, controller, one URLLC intent
 ```
 
-The read-only operator dashboard is available locally at `http://localhost:8080`
-after `docker compose up --build -d`. It reads the shared SQLite database and
-displays intents, current paths, recent measurements and the audit trail.
+The interactive operator dashboard is available locally at `http://localhost:8080`
+after `docker compose up --build -d`. It displays intents, current paths, recent
+measurements and the audit trail. Use **Create your own application intent** to enter
+your application/tenant, traffic match, priority, SLA guarantees and violation policy.
+You can preview or download the YAML, or submit it to M1 for validation and admission.
+The `intent-api` service remains internal to Docker Compose; only the dashboard is
+published on localhost.
 
 ---
 
@@ -86,7 +90,7 @@ src/
   pathing/            M3  yen_ksp.py, prune.py
   enforcement/        M4  flowmod.py, queues.py, controller.py
   telemetry/          M5  collector.py, probes.py, detector.py, runtime.py
-  dashboard/          M6  read-only operator dashboard and audit view
+  dashboard/          M6  interactive dashboard, custom intent builder, and audit view
   common/             models.py, db.py, events.py, audit.py
 topology/             Mininet topology and tc link budgets
 experiments/          run_all.sh, scenarios/, results/raw/ (CSV committed), plots/
@@ -145,8 +149,9 @@ docker compose exec -T sdn bash -lc "sed 's/\\r$//' experiments/scenarios/b3_clo
 
 The cumulative local ST-12 branch contains ST-1 through ST-11. Its current
 container validation passes 261 tests (11 skipped) with Ruff clean; live ST-7,
-ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the read-only dashboard at
-`http://localhost:8080`. ST-12 has a ten-run B0 baseline sample and a corrected
+ST-9 and ST-10 scenarios pass in sequence. ST-11 adds the operator dashboard at
+`http://localhost:8080`; the custom intent builder submits user-defined SLA requirements
+to M1 for validation and admission. ST-12 has a ten-run B0 baseline sample and a corrected
 flow-table pilot: on OVS 2.17.12, 2,000 unique rules installed at every tested
 limit from 100 through 5,000, so the software-switch E5 cap had no observed effect.
 An open-loop B1 pilot has ten POST-response latency runs (mean 61.982 ms,
