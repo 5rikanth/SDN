@@ -17,8 +17,11 @@ after `docker compose up --build -d`. It displays intents, current paths, recent
 measurements and the audit trail. Four realistic application intents—V2X emergency
 telemetry, remote-surgery video, public-safety live video, and smart-grid protection—
 are seeded automatically when Docker Compose starts. No manual intent entry is
-required. The internal M1 API is not published to the host; the dashboard remains
-read-only.
+required. The seed job adds 20 clearly labelled illustrative telemetry samples per
+intent only when no samples already exist; these values are simulated, not live network
+measurements. Once real collector readings are available, charts show live readings
+instead of mixing them with demo samples. The internal M1 API is not published to the
+host; the dashboard remains read-only.
 
 ---
 
