@@ -56,6 +56,8 @@ def test_dashboard_overview_lists_path_measurement_and_events(dashboard_db):
     assert row["state"] == "active"
     assert row["path"]["switches"] == ["s1", "s2", "s7"]
     assert row["latest_measurement"]["delay_ms"] == 9.5
+    assert row["path_status"] == "installed"
+    assert row["telemetry_source"] == "live"
     assert overview["events"][0]["type"] == "path.installed"
 
 
@@ -65,6 +67,8 @@ def test_dashboard_intent_detail_limits_and_orders_measurements(dashboard_db):
     assert detail["path"]["version"] == 1
     assert detail["measurements"][-1]["throughput_mbps"] == 4.0
     assert detail["reroutes"] == 0
+    assert detail["path_status"] == "installed"
+    assert detail["telemetry_source"] == "live"
     assert detail["events"][0]["payload"] == {"mode": "two-phase"}
 
 
@@ -79,3 +83,5 @@ def test_dashboard_html_is_self_contained_and_read_only():
     assert "Intent SDN SLA" in page
     assert "/api/dashboard" in page
     assert "read-only" in page
+    assert "Computed route · not installed yet" in page
+    assert "SIMULATED DEMO TELEMETRY" in page
